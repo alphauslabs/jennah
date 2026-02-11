@@ -6,6 +6,7 @@ import (
 )
 
 type GatewayService struct {
+	jennahv1connect.UnimplementedDeploymentServiceHandler
 	router        *hashing.Router
 	workerClients map[string]jennahv1connect.DeploymentServiceClient
 	oauthToTenant map[string]string
