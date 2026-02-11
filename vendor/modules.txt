@@ -3,6 +3,7 @@
 cel.dev/expr
 # cloud.google.com/go v0.123.0
 ## explicit; go 1.24.0
+cloud.google.com/go
 cloud.google.com/go/civil
 cloud.google.com/go/internal/fields
 cloud.google.com/go/internal/protostruct
@@ -30,9 +31,22 @@ cloud.google.com/go/auth/internal/trustboundary
 # cloud.google.com/go/auth/oauth2adapt v0.2.8
 ## explicit; go 1.23.0
 cloud.google.com/go/auth/oauth2adapt
+# cloud.google.com/go/batch v1.14.0
+## explicit; go 1.24.0
+cloud.google.com/go/batch/apiv1
+cloud.google.com/go/batch/apiv1/batchpb
+cloud.google.com/go/batch/internal
 # cloud.google.com/go/compute/metadata v0.9.0
 ## explicit; go 1.24.0
 cloud.google.com/go/compute/metadata
+# cloud.google.com/go/iam v1.5.3
+## explicit; go 1.24.0
+cloud.google.com/go/iam/apiv1/iampb
+# cloud.google.com/go/longrunning v0.7.0
+## explicit; go 1.24.0
+cloud.google.com/go/longrunning
+cloud.google.com/go/longrunning/autogen
+cloud.google.com/go/longrunning/autogen/longrunningpb
 # cloud.google.com/go/monitoring v1.24.3
 ## explicit; go 1.24.0
 cloud.google.com/go/monitoring/apiv3/v2
@@ -332,7 +346,9 @@ google.golang.org/api/transport/grpc
 google.golang.org/api/transport/http
 # google.golang.org/genproto v0.0.0-20250603155806-513f23925822
 ## explicit; go 1.23.0
+google.golang.org/genproto/googleapis/cloud/location
 google.golang.org/genproto/googleapis/type/calendarperiod
+google.golang.org/genproto/googleapis/type/expr
 google.golang.org/genproto/googleapis/type/timeofday
 # google.golang.org/genproto/googleapis/api v0.0.0-20251111163417-95abcf5c77ba
 ## explicit; go 1.24.0

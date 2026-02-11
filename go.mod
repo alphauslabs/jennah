@@ -3,6 +3,7 @@ module github.com/alphauslabs/jennah
 go 1.25
 
 require (
+	cloud.google.com/go/batch v1.14.0
 	cloud.google.com/go/spanner v1.87.0
 	connectrpc.com/connect v1.19.1
 	github.com/buraksezer/consistent v0.10.0
@@ -17,6 +18,8 @@ require (
 	cloud.google.com/go/auth v0.17.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
+	cloud.google.com/go/iam v1.5.3 // indirect
+	cloud.google.com/go/longrunning v0.7.0 // indirect
 	cloud.google.com/go/monitoring v1.24.3 // indirect
 	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.5.3 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.29.0 // indirect
