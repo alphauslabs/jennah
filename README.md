@@ -16,3 +16,9 @@
   $ make build
   $ ./bin/gateway -h
 ```
+#### Notes:
+Make sure to run the command below everytime you have made changes especially when adding/removing packages.
+```bash
+  $ go mod vendor && go mod tidy
+```
+ 
