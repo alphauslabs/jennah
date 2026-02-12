@@ -10,6 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.10.2
 	google.golang.org/api v0.256.0
+	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -61,5 +62,4 @@ require (
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251111163417-95abcf5c77ba // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251111163417-95abcf5c77ba // indirect
-	google.golang.org/grpc v1.76.0 // indirect
 )

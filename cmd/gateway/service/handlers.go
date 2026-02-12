@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"time"
 
 	"connectrpc.com/connect"
 
@@ -27,13 +26,17 @@ func (s *GatewayService) GetCurrentTenant(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	tenant := s.tenants[tenantId]
+	tenant, err := s.dbClient.GetTenant(ctx, tenantId)
+	if err != nil {
+		log.Printf("Failed to fetch tenant from database: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch tenant: %w", err))
+	}
 
 	response := connect.NewResponse(&jennahv1.GetCurrentTenantResponse{
 		TenantId:      tenant.TenantId,
 		UserEmail:     tenant.UserEmail,
 		OauthProvider: tenant.OAuthProvider,
-		CreatedAt:     tenant.CreatedAt.Format(time.RFC3339),
+		CreatedAt:     tenant.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
 
 	log.Printf("Retrieved tenant info for user %s: tenantId=%s", oauthUser.Email, tenantId)

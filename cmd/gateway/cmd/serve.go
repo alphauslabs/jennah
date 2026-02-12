@@ -15,12 +15,16 @@ import (
 
 	"github.com/alphauslabs/jennah/cmd/gateway/service"
 	jennahv1connect "github.com/alphauslabs/jennah/gen/proto/jennahv1connect"
+	"github.com/alphauslabs/jennah/internal/database"
 	"github.com/alphauslabs/jennah/internal/hashing"
 )
 
 var (
-	port      string
-	workerIPs string
+	port            string
+	workerIPs       string
+	gcpProject      string
+	spannerInstance string
+	spannerDatabase string
 )
 
 var serveCmd = &cobra.Command{
@@ -32,11 +36,23 @@ var serveCmd = &cobra.Command{
 
 func init() {
 	serveCmd.Flags().StringVar(&port, "port", "8080", "Port to listen on")
-	serveCmd.Flags().StringVar(&workerIPs, "worker-ips", "10.146.0.26", "Comma-separated list of worker IPs")
+	serveCmd.Flags().StringVar(&workerIPs, "worker-ips", "10.128.0.1,10.128.0.2,10.128.0.3", "Comma-separated list of worker IPs")
+	serveCmd.Flags().StringVar(&gcpProject, "gcp-project", "labs-169405", "GCP Project ID")
+	serveCmd.Flags().StringVar(&spannerInstance, "spanner-instance", "alphaus-dev", "Cloud Spanner instance")
+	serveCmd.Flags().StringVar(&spannerDatabase, "spanner-database", "main", "Cloud Spanner database")
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
 	log.Printf("Starting gateway")
+
+	ctx := context.Background()
+	dbClient, err := database.NewClient(ctx, gcpProject, spannerInstance, spannerDatabase)
+	if err != nil {
+
+		return fmt.Errorf("failed to initialize database client: %w", err)
+	}
+	defer dbClient.Close()
+	log.Printf("Connected to Cloud Spanner: %s/%s/%s", gcpProject, spannerInstance, spannerDatabase)
 
 	workers := strings.Split(workerIPs, ",")
 	for i, ip := range workers {
@@ -57,7 +73,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		log.Printf("Created client for worker at %s", workerURL)
 	}
 
-	gatewayService := service.NewGatewayService(router, workerClients)
+	gatewayService := service.NewGatewayService(router, workerClients, dbClient)
 
 	mux := http.NewServeMux()
 	path, handler := jennahv1connect.NewDeploymentServiceHandler(gatewayService)
@@ -90,6 +106,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		log.Printf("  • POST %sListJobs", path)
 		log.Printf("  • GET  /health")
 		log.Println("OAuth-enabled - tenantId auto-generated from auth headers")
+		log.Println("Database: Cloud Spanner (persistent tenant storage)")
 		log.Println("")
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
