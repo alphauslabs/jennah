@@ -1,0 +1,28 @@
+# Git
+.git/
+.gitignore
+
+# Binaries
+bin/
+*.exe
+
+# Tests
+*_test.go
+
+# IDE
+.vscode/
+.idea/
+
+# Docs
+*.md
+docs/
+
+# Database scripts
+database/
+
+# CI/CD
+.github/
+
+# Temp files
+*.swp
+*.swo
