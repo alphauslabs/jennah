@@ -6,7 +6,7 @@
 ### Development guidelines
 
 #### Generate code from proto files:
- ```bash
+```bash
    $ make generate
 ```
 
