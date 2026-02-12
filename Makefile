@@ -1,9 +1,12 @@
-.PHONY: build gw-docker-build gw-docker-run gw-docker-push gw-deploy clean
+.PHONY: build gw-docker-build gw-docker-run gw-docker-push gw-deploy clean generate
 
 PROJECT_ID = labs-169405
 IMAGE_NAME = jennah-gateway
 IMAGE_TAG = latest
 AR_IMAGE = asia-docker.pkg.dev/$(PROJECT_ID)/asia.gcr.io/$(IMAGE_NAME):$(IMAGE_TAG)
+
+generate:
+	buf generate --exclude-path vendor/
 
 build:
 	cd cmd/gateway && go build -o ../../bin/gateway main.go
@@ -23,7 +26,7 @@ gw-deploy:
 	gcloud run deploy $(IMAGE_NAME) \
 	  --image $(AR_IMAGE) \
 	  --platform managed \
-	  --region us-central1 \
+	  --region asia-northeast1 \
 	  --port 8080
 
 clean:
