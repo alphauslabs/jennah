@@ -1,4 +1,4 @@
-name: Try Build Binaries
+name: Try build binaries
 
 on:
   push:
