@@ -114,7 +114,7 @@ func (c *Client) UpdateJobStatus(ctx context.Context, tenantID, jobID, status st
 	_, err := c.client.Apply(ctx, []*spanner.Mutation{
 		spanner.Update("Jobs",
 			[]string{"TenantId", "JobId", "Status", "UpdatedAt"},
-			[]interface{}{tenantID, jobID, status, spanner.CommitTimestamp},
+			[]any{tenantID, jobID, status, spanner.CommitTimestamp},
 		),
 	})
 	if err != nil {
@@ -129,7 +129,7 @@ func (c *Client) CompleteJob(ctx context.Context, tenantID, jobID string) error 
 	_, err := c.client.Apply(ctx, []*spanner.Mutation{
 		spanner.Update("Jobs",
 			[]string{"TenantId", "JobId", "Status", "CompletedAt", "UpdatedAt"},
-			[]interface{}{tenantID, jobID, JobStatusCompleted, now, spanner.CommitTimestamp},
+			[]any{tenantID, jobID, JobStatusCompleted, now, spanner.CommitTimestamp},
 		),
 	})
 	if err != nil {
@@ -144,7 +144,7 @@ func (c *Client) FailJob(ctx context.Context, tenantID, jobID, errorMessage stri
 	_, err := c.client.Apply(ctx, []*spanner.Mutation{
 		spanner.Update("Jobs",
 			[]string{"TenantId", "JobId", "Status", "ErrorMessage", "CompletedAt", "UpdatedAt"},
-			[]interface{}{tenantID, jobID, JobStatusFailed, errorMessage, now, spanner.CommitTimestamp},
+			[]any{tenantID, jobID, JobStatusFailed, errorMessage, now, spanner.CommitTimestamp},
 		),
 	})
 	if err != nil {
@@ -159,7 +159,7 @@ func (c *Client) ScheduleJob(ctx context.Context, tenantID, jobID string) error 
 	_, err := c.client.Apply(ctx, []*spanner.Mutation{
 		spanner.Update("Jobs",
 			[]string{"TenantId", "JobId", "Status", "ScheduledAt", "UpdatedAt"},
-			[]interface{}{tenantID, jobID, JobStatusScheduled, now, spanner.CommitTimestamp},
+			[]any{tenantID, jobID, JobStatusScheduled, now, spanner.CommitTimestamp},
 		),
 	})
 	if err != nil {
