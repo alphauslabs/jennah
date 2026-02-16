@@ -14,6 +14,7 @@ import (
 	jennahv1 "github.com/alphauslabs/jennah/gen/proto"
 	"github.com/alphauslabs/jennah/gen/proto/jennahv1connect"
 	"github.com/alphauslabs/jennah/internal/batch"
+	"github.com/alphauslabs/jennah/internal/config"
 	"github.com/alphauslabs/jennah/internal/database"
 )
 
@@ -21,6 +22,7 @@ type WorkerServer struct {
 	jennahv1connect.UnimplementedDeploymentServiceHandler
 	dbClient      *database.Client
 	batchProvider batch.Provider
+	jobConfig     *config.JobConfigFile
 }
 
 func (s *WorkerServer) SubmitJob(
@@ -60,17 +62,15 @@ func (s *WorkerServer) SubmitJob(
 	log.Printf("Job %s saved to database with PENDING status", internalJobID)
 
 	// Submit job to cloud batch provider
-	jobConfig := batch.JobConfig{
-		JobID:    providerJobID,
-		ImageURI: req.Msg.ImageUri,
-		EnvVars:  req.Msg.EnvVars,
-		Resources: &batch.ResourceRequirements{
-			CPUMillis: 2000, // 2 vCPUs
-			MemoryMiB: 4096, // 4 GB RAM
-		},
+	// TODO: Allow clients to specify resource_profile in SubmitJobRequest
+	batchJobConfig := batch.JobConfig{
+		JobID:     providerJobID,
+		ImageURI:  req.Msg.ImageUri,
+		EnvVars:   req.Msg.EnvVars,
+		Resources: s.jobConfig.GetResourceRequirements(""), // Use default profile
 	}
 
-	jobResult, err := s.batchProvider.SubmitJob(ctx, jobConfig)
+	jobResult, err := s.batchProvider.SubmitJob(ctx, batchJobConfig)
 	if err != nil {
 		log.Printf("Error submitting job to batch provider: %v", err)
 		failErr := s.dbClient.FailJob(ctx, tenantId, internalJobID, err.Error())
@@ -84,13 +84,13 @@ func (s *WorkerServer) SubmitJob(
 	}
 	log.Printf("Batch job created: %s", jobResult.CloudResourcePath)
 
-	// Update job status based on provider's initial status
+	// Update job status and cloud resource path based on provider's initial status
 	statusToSet := string(jobResult.InitialStatus)
 	if statusToSet == "" || statusToSet == string(batch.JobStatusUnknown) {
 		statusToSet = database.JobStatusRunning
 	}
 
-	err = s.dbClient.UpdateJobStatus(ctx, tenantId, internalJobID, statusToSet)
+	err = s.dbClient.UpdateJobStatusAndCloudPath(ctx, tenantId, internalJobID, statusToSet, jobResult.CloudResourcePath)
 	if err != nil {
 		log.Printf("Error updating job status to %s: %v", statusToSet, err)
 		return nil, connect.NewError(
@@ -98,7 +98,7 @@ func (s *WorkerServer) SubmitJob(
 			fmt.Errorf("failed to update job status: %w", err),
 		)
 	}
-	log.Printf("Job %s status updated to %s", internalJobID, statusToSet)
+	log.Printf("Job %s status updated to %s with cloud path: %s", internalJobID, statusToSet, jobResult.CloudResourcePath)
 
 	response := connect.NewResponse(&jennahv1.SubmitJobResponse{
 		JobId:  internalJobID, // Return internal UUID to client
