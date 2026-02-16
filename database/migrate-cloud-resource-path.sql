@@ -7,9 +7,14 @@
 --              - Azure: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Batch/...
 -- Date: 2026-02-16
 
--- Rename the column
-ALTER TABLE Jobs RENAME COLUMN GcpBatchJobName TO CloudJobResourcePath;
+-- Cloud Spanner doesn't support RENAME COLUMN directly
+-- We need to: 1) Add new column 2) Copy data 3) Drop old column
 
--- Note: This is a DDL change in Cloud Spanner and does not require data migration.
--- The column contents remain the same, only the name changes for better clarity.
--- All existing GCP resource paths will continue to work without modification.
+-- Step 1: Add the new column
+ALTER TABLE Jobs ADD COLUMN CloudJobResourcePath STRING(1024);
+
+-- Step 2: Copy data from old column to new column (run this UPDATE separately after Step 1 completes)
+-- UPDATE Jobs SET CloudJobResourcePath = GcpBatchJobName WHERE CloudJobResourcePath IS NULL;
+
+-- Step 3: Drop the old column (run this ALTER separately after Step 2 completes)
+-- ALTER TABLE Jobs DROP COLUMN GcpBatchJobName;

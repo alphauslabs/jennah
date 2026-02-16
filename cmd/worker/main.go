@@ -47,9 +47,25 @@ func main() {
 	log.Printf("Initialized %s batch provider in region: %s", 
 		cfg.BatchProvider.Provider, cfg.BatchProvider.Region)
 
+	// Load job configuration from JSON file
+	jobConfigPath := os.Getenv("JOB_CONFIG_PATH")
+	if jobConfigPath == "" {
+		jobConfigPath = "config/job-config.json" // Default path
+	}
+	jobConfig, err := config.LoadJobConfig(jobConfigPath)
+	if err != nil {
+		log.Fatalf("Failed to load job config: %v", err)
+	}
+	log.Printf("Loaded job config from: %s", jobConfigPath)
+	log.Printf("Default resources: CPU=%dm, Memory=%dMiB, MaxRuntime=%ds",
+		jobConfig.DefaultResources.CPUMillis,
+		jobConfig.DefaultResources.MemoryMiB,
+		jobConfig.DefaultResources.MaxRunDurationSeconds)
+
 	workerServer := &WorkerServer{
 		dbClient:      dbClient,
 		batchProvider: batchProvider,
+		jobConfig:     jobConfig,
 	}
 
 	mux := http.NewServeMux()

@@ -14,7 +14,7 @@ func (c *Client) InsertJob(ctx context.Context, tenantID, jobID, imageUri string
 	_, err := c.client.Apply(ctx, []*spanner.Mutation{
 		spanner.Insert("Jobs",
 			[]string{"TenantId", "JobId", "Status", "ImageUri", "Commands", "CreatedAt", "UpdatedAt", "RetryCount", "MaxRetries", "CloudJobResourcePath"},
-			[]interface{}{tenantID, jobID, JobStatusPending, imageUri, commands, spanner.CommitTimestamp, spanner.CommitTimestamp, 0, 3},
+			[]interface{}{tenantID, jobID, JobStatusPending, imageUri, commands, spanner.CommitTimestamp, spanner.CommitTimestamp, 0, 3, nil},
 		),
 	})
 	return err
@@ -119,6 +119,20 @@ func (c *Client) UpdateJobStatus(ctx context.Context, tenantID, jobID, status st
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update job status: %w", err)
+	}
+	return nil
+}
+
+// UpdateJobStatusAndCloudPath updates the status and cloud resource path of a job
+func (c *Client) UpdateJobStatusAndCloudPath(ctx context.Context, tenantID, jobID, status, cloudResourcePath string) error {
+	_, err := c.client.Apply(ctx, []*spanner.Mutation{
+		spanner.Update("Jobs",
+			[]string{"TenantId", "JobId", "Status", "CloudJobResourcePath", "UpdatedAt"},
+			[]any{tenantID, jobID, status, cloudResourcePath, spanner.CommitTimestamp},
+		),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update job status and cloud path: %w", err)
 	}
 	return nil
 }
