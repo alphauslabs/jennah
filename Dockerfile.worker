@@ -17,6 +17,7 @@ FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /build/worker /worker
+COPY --from=builder /build/config/job-config.json /config/job-config.json
 
 EXPOSE 8081
 
