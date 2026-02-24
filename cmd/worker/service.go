@@ -42,6 +42,27 @@ func (s *WorkerServer) SubmitJob(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("image_uri is required"))
 	}
 
+	// Ensure the tenant row exists in this worker's Spanner instance before inserting a job.
+	// The gateway may connect to a different Spanner instance, so we upsert here to prevent
+	// "Parent row missing" errors caused by the Jobs table being interleaved under Tenants.
+	userEmail := req.Header().Get("X-User-Email")
+	oauthProvider := req.Header().Get("X-OAuth-Provider")
+	oauthUserId := req.Header().Get("X-OAuth-User-Id")
+	if userEmail == "" {
+		userEmail = "unknown"
+	}
+	if oauthProvider == "" {
+		oauthProvider = "unknown"
+	}
+	if oauthUserId == "" {
+		oauthUserId = tenantId // fallback
+	}
+	if err := s.dbClient.UpsertTenant(ctx, tenantId, userEmail, oauthProvider, oauthUserId); err != nil {
+		log.Printf("Error upserting tenant %s: %v", tenantId, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to ensure tenant exists: %w", err))
+	}
+	log.Printf("Tenant %s upserted successfully", tenantId)
+
 	// Generate internal UUID for Spanner primary key
 	internalJobID := uuid.New().String()
 	log.Printf("Generated internal job ID: %s", internalJobID)

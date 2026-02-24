@@ -1,29 +1,33 @@
 package database
 
-import "time"
+import (
+	"time"
+
+	"cloud.google.com/go/spanner"
+)
 
 // Tenant represents an organization/team using the platform
 type Tenant struct {
-	TenantId      string    `spanner:"TenantId"`
-	UserEmail     string    `spanner:"UserEmail"`
-	OAuthProvider string    `spanner:"OAuthProvider"`
-	OAuthUserId   string    `spanner:"OAuthUserId"`
-	CreatedAt     time.Time `spanner:"CreatedAt"`
-	UpdatedAt     time.Time `spanner:"UpdatedAt"`
+	TenantId      string             `spanner:"TenantId"`
+	UserEmail     spanner.NullString `spanner:"UserEmail"`
+	OAuthProvider spanner.NullString `spanner:"OAuthProvider"`
+	OAuthUserId   spanner.NullString `spanner:"OAuthUserId"`
+	CreatedAt     time.Time          `spanner:"CreatedAt"`
+	UpdatedAt     time.Time          `spanner:"UpdatedAt"`
 }
 
 // Job represents a deployment job
 type Job struct {
-	TenantId        string     `spanner:"TenantId"`
-	JobId           string     `spanner:"JobId"`
-	Status          string     `spanner:"Status"`
-	ImageUri        string     `spanner:"ImageUri"`
-	Commands        []string   `spanner:"Commands"`
-	CreatedAt       time.Time  `spanner:"CreatedAt"`
-	UpdatedAt       time.Time  `spanner:"UpdatedAt"`
-	ScheduledAt     *time.Time `spanner:"ScheduledAt"`
-	StartedAt       *time.Time `spanner:"StartedAt"`
-	CompletedAt     *time.Time `spanner:"CompletedAt"`
+	TenantId             string     `spanner:"TenantId"`
+	JobId                string     `spanner:"JobId"`
+	Status               string     `spanner:"Status"`
+	ImageUri             string     `spanner:"ImageUri"`
+	Commands             []string   `spanner:"Commands"`
+	CreatedAt            time.Time  `spanner:"CreatedAt"`
+	UpdatedAt            time.Time  `spanner:"UpdatedAt"`
+	ScheduledAt          *time.Time `spanner:"ScheduledAt"`
+	StartedAt            *time.Time `spanner:"StartedAt"`
+	CompletedAt          *time.Time `spanner:"CompletedAt"`
 	RetryCount           int64      `spanner:"RetryCount"`
 	MaxRetries           int64      `spanner:"MaxRetries"`
 	ErrorMessage         *string    `spanner:"ErrorMessage"`

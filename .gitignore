@@ -3,3 +3,7 @@ bin/
 .github/Jennah-overview.png
 .github/instructions/go.instructions.md
 .env
+cmd/cli/jennah
+cmd/cli/jennah.exe
+cmd/cli-spanner/
+cmd/cli-ui-test/

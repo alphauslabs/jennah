@@ -92,6 +92,10 @@ func (s *GatewayService) SubmitJob(
 		ResourceOverride: req.Msg.ResourceOverride,
 	})
 	workerReq.Header().Set("X-Tenant-Id", tenantId)
+	// Pass user info so the worker can upsert the tenant row in its own DB connection
+	workerReq.Header().Set("X-User-Email", oauthUser.Email)
+	workerReq.Header().Set("X-OAuth-Provider", oauthUser.Provider)
+	workerReq.Header().Set("X-OAuth-User-Id", oauthUser.UserId)
 
 	response, err := workerClient.SubmitJob(ctx, workerReq)
 	if err != nil {
@@ -148,5 +152,39 @@ func (s *GatewayService) ListJobs(
 	log.Printf("Successfully listed %d jobs for tenant %s", len(protoJobs), tenantId)
 	return connect.NewResponse(&jennahv1.ListJobsResponse{
 		Jobs: protoJobs,
+	}), nil
+}
+
+func (s *GatewayService) DeleteJob(
+	ctx context.Context,
+	req *connect.Request[jennahv1.DeleteJobRequest],
+) (*connect.Response[jennahv1.DeleteJobResponse], error) {
+	log.Printf("Received delete job request")
+
+	oauthUser, err := extractOAuthUser(req.Header())
+	if err != nil {
+		log.Printf("OAuth authentication failed: %v", err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+
+	tenantId, err := s.getOrCreateTenant(oauthUser)
+	if err != nil {
+		log.Printf("Failed to get or create tenant: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	if req.Msg.JobId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("job_id is required"))
+	}
+
+	if err := s.dbClient.DeleteJob(ctx, tenantId, req.Msg.JobId); err != nil {
+		log.Printf("Failed to delete job %s: %v", req.Msg.JobId, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to delete job: %w", err))
+	}
+
+	log.Printf("Deleted job %s for tenant %s", req.Msg.JobId, tenantId)
+	return connect.NewResponse(&jennahv1.DeleteJobResponse{
+		JobId:   req.Msg.JobId,
+		Message: "job deleted successfully",
 	}), nil
 }
