@@ -43,6 +43,18 @@ message SubmitJobRequest {
   // resource_override provides inline resource values that take precedence over the preset.
   // Partial overrides are supported — zero fields fall back to the resolved preset.
   ResourceOverride resource_override = 5;
+  // Optional user-provided job name.
+  string name = 6;
+  // Resolved machine type: "e2-standard-4", "n1-standard-16", etc.
+  string machine_type = 7;
+  // Boot disk size in GB (default: 50).
+  int64 boot_disk_size_gb = 8;
+  // Whether to use Spot VMs (default: false).
+  bool use_spot_vms = 9;
+  // Custom service account email (optional).
+  string service_account = 10;
+  // Commands to execute in the container.
+  repeated string commands = 11;
 }
 
 message SubmitJobResponse {
@@ -75,6 +87,18 @@ message Job {
   repeated string commands = 14;
   string env_vars_json = 15;
   string gcp_batch_task_group = 16;
+  // User-facing job name.
+  string name = 17;
+  // Resource preset used at submission: "small", "medium", "large", "xlarge".
+  string resource_profile = 18;
+  // Resolved machine type: "e2-standard-4", "n1-standard-16", etc.
+  string machine_type = 19;
+  // Boot disk size in GB.
+  int64 boot_disk_size_gb = 20;
+  // Whether Spot VMs were requested.
+  bool use_spot_vms = 21;
+  // Custom service account email (optional).
+  string service_account = 22;
 }
 
 message GetCurrentTenantRequest {

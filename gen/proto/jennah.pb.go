@@ -96,8 +96,20 @@ type SubmitJobRequest struct {
 	// resource_override provides inline resource values that take precedence over the preset.
 	// Partial overrides are supported — zero fields fall back to the resolved preset.
 	ResourceOverride *ResourceOverride `protobuf:"bytes,5,opt,name=resource_override,json=resourceOverride,proto3" json:"resource_override,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Optional user-provided job name.
+	Name string `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	// Resolved machine type: "e2-standard-4", "n1-standard-16", etc.
+	MachineType string `protobuf:"bytes,7,opt,name=machine_type,json=machineType,proto3" json:"machine_type,omitempty"`
+	// Boot disk size in GB (default: 50).
+	BootDiskSizeGb int64 `protobuf:"varint,8,opt,name=boot_disk_size_gb,json=bootDiskSizeGb,proto3" json:"boot_disk_size_gb,omitempty"`
+	// Whether to use Spot VMs (default: false).
+	UseSpotVms bool `protobuf:"varint,9,opt,name=use_spot_vms,json=useSpotVms,proto3" json:"use_spot_vms,omitempty"`
+	// Custom service account email (optional).
+	ServiceAccount string `protobuf:"bytes,10,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
+	// Commands to execute in the container.
+	Commands      []string `protobuf:"bytes,11,rep,name=commands,proto3" json:"commands,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SubmitJobRequest) Reset() {
@@ -154,6 +166,48 @@ func (x *SubmitJobRequest) GetResourceProfile() string {
 func (x *SubmitJobRequest) GetResourceOverride() *ResourceOverride {
 	if x != nil {
 		return x.ResourceOverride
+	}
+	return nil
+}
+
+func (x *SubmitJobRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SubmitJobRequest) GetMachineType() string {
+	if x != nil {
+		return x.MachineType
+	}
+	return ""
+}
+
+func (x *SubmitJobRequest) GetBootDiskSizeGb() int64 {
+	if x != nil {
+		return x.BootDiskSizeGb
+	}
+	return 0
+}
+
+func (x *SubmitJobRequest) GetUseSpotVms() bool {
+	if x != nil {
+		return x.UseSpotVms
+	}
+	return false
+}
+
+func (x *SubmitJobRequest) GetServiceAccount() string {
+	if x != nil {
+		return x.ServiceAccount
+	}
+	return ""
+}
+
+func (x *SubmitJobRequest) GetCommands() []string {
+	if x != nil {
+		return x.Commands
 	}
 	return nil
 }
@@ -316,8 +370,20 @@ type Job struct {
 	Commands          []string               `protobuf:"bytes,14,rep,name=commands,proto3" json:"commands,omitempty"`
 	EnvVarsJson       string                 `protobuf:"bytes,15,opt,name=env_vars_json,json=envVarsJson,proto3" json:"env_vars_json,omitempty"`
 	GcpBatchTaskGroup string                 `protobuf:"bytes,16,opt,name=gcp_batch_task_group,json=gcpBatchTaskGroup,proto3" json:"gcp_batch_task_group,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// User-facing job name.
+	Name string `protobuf:"bytes,17,opt,name=name,proto3" json:"name,omitempty"`
+	// Resource preset used at submission: "small", "medium", "large", "xlarge".
+	ResourceProfile string `protobuf:"bytes,18,opt,name=resource_profile,json=resourceProfile,proto3" json:"resource_profile,omitempty"`
+	// Resolved machine type: "e2-standard-4", "n1-standard-16", etc.
+	MachineType string `protobuf:"bytes,19,opt,name=machine_type,json=machineType,proto3" json:"machine_type,omitempty"`
+	// Boot disk size in GB.
+	BootDiskSizeGb int64 `protobuf:"varint,20,opt,name=boot_disk_size_gb,json=bootDiskSizeGb,proto3" json:"boot_disk_size_gb,omitempty"`
+	// Whether Spot VMs were requested.
+	UseSpotVms bool `protobuf:"varint,21,opt,name=use_spot_vms,json=useSpotVms,proto3" json:"use_spot_vms,omitempty"`
+	// Custom service account email (optional).
+	ServiceAccount string `protobuf:"bytes,22,opt,name=service_account,json=serviceAccount,proto3" json:"service_account,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Job) Reset() {
@@ -458,6 +524,48 @@ func (x *Job) GetEnvVarsJson() string {
 func (x *Job) GetGcpBatchTaskGroup() string {
 	if x != nil {
 		return x.GcpBatchTaskGroup
+	}
+	return ""
+}
+
+func (x *Job) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Job) GetResourceProfile() string {
+	if x != nil {
+		return x.ResourceProfile
+	}
+	return ""
+}
+
+func (x *Job) GetMachineType() string {
+	if x != nil {
+		return x.MachineType
+	}
+	return ""
+}
+
+func (x *Job) GetBootDiskSizeGb() int64 {
+	if x != nil {
+		return x.BootDiskSizeGb
+	}
+	return 0
+}
+
+func (x *Job) GetUseSpotVms() bool {
+	if x != nil {
+		return x.UseSpotVms
+	}
+	return false
+}
+
+func (x *Job) GetServiceAccount() string {
+	if x != nil {
+		return x.ServiceAccount
 	}
 	return ""
 }
@@ -856,12 +964,20 @@ const file_jennah_proto_rawDesc = "" +
 	"cpu_millis\x18\x01 \x01(\x03R\tcpuMillis\x12\x1d\n" +
 	"\n" +
 	"memory_mib\x18\x02 \x01(\x03R\tmemoryMib\x127\n" +
-	"\x18max_run_duration_seconds\x18\x03 \x01(\x03R\x15maxRunDurationSeconds\"\xa5\x02\n" +
+	"\x18max_run_duration_seconds\x18\x03 \x01(\x03R\x15maxRunDurationSeconds\"\xee\x03\n" +
 	"\x10SubmitJobRequest\x12\x1b\n" +
 	"\timage_uri\x18\x02 \x01(\tR\bimageUri\x12C\n" +
 	"\benv_vars\x18\x03 \x03(\v2(.jennah.v1.SubmitJobRequest.EnvVarsEntryR\aenvVars\x12)\n" +
 	"\x10resource_profile\x18\x04 \x01(\tR\x0fresourceProfile\x12H\n" +
-	"\x11resource_override\x18\x05 \x01(\v2\x1b.jennah.v1.ResourceOverrideR\x10resourceOverride\x1a:\n" +
+	"\x11resource_override\x18\x05 \x01(\v2\x1b.jennah.v1.ResourceOverrideR\x10resourceOverride\x12\x12\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\x12!\n" +
+	"\fmachine_type\x18\a \x01(\tR\vmachineType\x12)\n" +
+	"\x11boot_disk_size_gb\x18\b \x01(\x03R\x0ebootDiskSizeGb\x12 \n" +
+	"\fuse_spot_vms\x18\t \x01(\bR\n" +
+	"useSpotVms\x12'\n" +
+	"\x0fservice_account\x18\n" +
+	" \x01(\tR\x0eserviceAccount\x12\x1a\n" +
+	"\bcommands\x18\v \x03(\tR\bcommands\x1a:\n" +
 	"\fEnvVarsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"k\n" +
@@ -871,7 +987,7 @@ const file_jennah_proto_rawDesc = "" +
 	"\x0fworker_assigned\x18\x03 \x01(\tR\x0eworkerAssigned\"\x11\n" +
 	"\x0fListJobsRequest\"6\n" +
 	"\x10ListJobsResponse\x12\"\n" +
-	"\x04jobs\x18\x01 \x03(\v2\x0e.jennah.v1.JobR\x04jobs\"\x96\x04\n" +
+	"\x04jobs\x18\x01 \x03(\v2\x0e.jennah.v1.JobR\x04jobs\"\xee\x05\n" +
 	"\x03Job\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1b\n" +
@@ -894,7 +1010,14 @@ const file_jennah_proto_rawDesc = "" +
 	"\x12gcp_batch_job_name\x18\r \x01(\tR\x0fgcpBatchJobName\x12\x1a\n" +
 	"\bcommands\x18\x0e \x03(\tR\bcommands\x12\"\n" +
 	"\renv_vars_json\x18\x0f \x01(\tR\venvVarsJson\x12/\n" +
-	"\x14gcp_batch_task_group\x18\x10 \x01(\tR\x11gcpBatchTaskGroup\"\x19\n" +
+	"\x14gcp_batch_task_group\x18\x10 \x01(\tR\x11gcpBatchTaskGroup\x12\x12\n" +
+	"\x04name\x18\x11 \x01(\tR\x04name\x12)\n" +
+	"\x10resource_profile\x18\x12 \x01(\tR\x0fresourceProfile\x12!\n" +
+	"\fmachine_type\x18\x13 \x01(\tR\vmachineType\x12)\n" +
+	"\x11boot_disk_size_gb\x18\x14 \x01(\x03R\x0ebootDiskSizeGb\x12 \n" +
+	"\fuse_spot_vms\x18\x15 \x01(\bR\n" +
+	"useSpotVms\x12'\n" +
+	"\x0fservice_account\x18\x16 \x01(\tR\x0eserviceAccount\"\x19\n" +
 	"\x17GetCurrentTenantRequest\"\x9c\x01\n" +
 	"\x18GetCurrentTenantResponse\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
