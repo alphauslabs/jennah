@@ -18,6 +18,45 @@ import (
 	"github.com/alphauslabs/jennah/internal/database"
 )
 
+// dbJobToProto converts a database Job to a proto Job message.
+func dbJobToProto(job *database.Job) *jennahv1.Job {
+	p := &jennahv1.Job{
+		JobId:      job.JobId,
+		TenantId:   job.TenantId,
+		ImageUri:   job.ImageUri,
+		Status:     job.Status,
+		CreatedAt:  job.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:  job.UpdatedAt.Format(time.RFC3339),
+		RetryCount: job.RetryCount,
+		MaxRetries: job.MaxRetries,
+		Commands:   job.Commands,
+	}
+
+	if job.ScheduledAt != nil {
+		p.ScheduledAt = job.ScheduledAt.Format(time.RFC3339)
+	}
+	if job.StartedAt != nil {
+		p.StartedAt = job.StartedAt.Format(time.RFC3339)
+	}
+	if job.CompletedAt != nil {
+		p.CompletedAt = job.CompletedAt.Format(time.RFC3339)
+	}
+	if job.ErrorMessage != nil {
+		p.ErrorMessage = *job.ErrorMessage
+	}
+	if job.GcpBatchJobName != nil {
+		p.GcpBatchJobName = *job.GcpBatchJobName
+	}
+	if job.GcpBatchTaskGroup != nil {
+		p.GcpBatchTaskGroup = *job.GcpBatchTaskGroup
+	}
+	if job.EnvVarsJson != nil {
+		p.EnvVarsJson = *job.EnvVarsJson
+	}
+
+	return p
+}
+
 // SubmitJob handles a job submission request.
 func (s *WorkerService) SubmitJob(
 	ctx context.Context,
@@ -140,14 +179,7 @@ func (s *WorkerService) ListJobs(
 
 	protoJobs := make([]*jennahv1.Job, 0, len(jobs))
 	for _, job := range jobs {
-		protoJob := &jennahv1.Job{
-			JobId:     job.JobId,
-			TenantId:  job.TenantId,
-			ImageUri:  job.ImageUri,
-			Status:    job.Status,
-			CreatedAt: job.CreatedAt.Format(time.RFC3339),
-		}
-		protoJobs = append(protoJobs, protoJob)
+		protoJobs = append(protoJobs, dbJobToProto(job))
 	}
 
 	response := connect.NewResponse(&jennahv1.ListJobsResponse{
@@ -298,6 +330,38 @@ func (s *WorkerService) DeleteJob(
 	})
 
 	log.Printf("Successfully deleted job %s", jobID)
+	return response, nil
+}
+
+// GetJob returns full details for a single job.
+func (s *WorkerService) GetJob(
+	ctx context.Context,
+	req *connect.Request[jennahv1.GetJobRequest],
+) (*connect.Response[jennahv1.GetJobResponse], error) {
+	tenantID := req.Header().Get("X-Tenant-Id")
+	jobID := req.Msg.JobId
+
+	if tenantID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("X-Tenant-Id header is required"))
+	}
+
+	if jobID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("job_id is required"))
+	}
+
+	log.Printf("Received GetJob request for job %s (tenant: %s)", jobID, tenantID)
+
+	job, err := s.dbClient.GetJob(ctx, tenantID, jobID)
+	if err != nil {
+		log.Printf("Error retrieving job: %v", err)
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("job not found: %w", err))
+	}
+
+	response := connect.NewResponse(&jennahv1.GetJobResponse{
+		Job: dbJobToProto(job),
+	})
+
+	log.Printf("Successfully retrieved job %s for tenant %s", jobID, tenantID)
 	return response, nil
 }
 

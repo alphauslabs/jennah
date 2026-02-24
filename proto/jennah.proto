@@ -18,6 +18,8 @@ service DeploymentService {
   rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
   // Delete a job from the system.
   rpc DeleteJob(DeleteJobRequest) returns (DeleteJobResponse);
+  // Get a single job's full details.
+  rpc GetJob(GetJobRequest) returns (GetJobResponse);
 }
 
 
@@ -62,6 +64,17 @@ message Job {
   string image_uri = 3;
   string status = 4;
   string created_at = 5;
+  string updated_at = 6;
+  string scheduled_at = 7;
+  string started_at = 8;
+  string completed_at = 9;
+  int64 retry_count = 10;
+  int64 max_retries = 11;
+  string error_message = 12;
+  string gcp_batch_job_name = 13;
+  repeated string commands = 14;
+  string env_vars_json = 15;
+  string gcp_batch_task_group = 16;
 }
 
 message GetCurrentTenantRequest {
@@ -90,4 +103,12 @@ message DeleteJobRequest {
 message DeleteJobResponse {
   string job_id = 1;
   string message = 2;
+}
+
+message GetJobRequest {
+  string job_id = 1;
+}
+
+message GetJobResponse {
+  Job job = 1;
 }
