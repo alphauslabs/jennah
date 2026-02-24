@@ -35,8 +35,8 @@ func (s *GatewayService) GetCurrentTenant(
 
 	response := connect.NewResponse(&jennahv1.GetCurrentTenantResponse{
 		TenantId:      tenant.TenantId,
-		UserEmail:     tenant.UserEmail,
-		OauthProvider: tenant.OAuthProvider,
+		UserEmail:     tenant.UserEmail.StringVal,
+		OauthProvider: tenant.OAuthProvider.StringVal,
 		CreatedAt:     tenant.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
 
