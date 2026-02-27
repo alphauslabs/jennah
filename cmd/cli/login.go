@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,6 +15,8 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+const githubClientID = "Ov23lieja2yqgsKqGkGT"
 
 // ────────────────────────────────────────────────
 // GitHub Device Flow helpers
@@ -215,15 +218,7 @@ var loginCmd = &cobra.Command{
 			return nil
 		}
 
-		// Require GITHUB_CLIENT_ID to be set.
-		clientID := os.Getenv("GITHUB_CLIENT_ID")
-		if clientID == "" {
-			return fmt.Errorf(
-				"GITHUB_CLIENT_ID environment variable is not set.\n" +
-					"Create a GitHub OAuth App at https://github.com/settings/developers,\n" +
-					"enable Device Flow, and export its Client ID:\n\n" +
-					"  export GITHUB_CLIENT_ID=<your-client-id>")
-		}
+		clientID := githubClientID
 
 		fmt.Println("Log in to Jennah")
 		fmt.Println("────────────────")
@@ -236,9 +231,11 @@ var loginCmd = &cobra.Command{
 			return err
 		}
 
-		// Step 2: Ask the user to authorize in their browser.
-		fmt.Printf("Open this URL in your browser:\n\n  \033[36m%s\033[0m\n\n", dcResp.VerificationURI)
-		fmt.Printf("Then enter this code: \033[1;33m%s\033[0m\n\n", dcResp.UserCode)
+		// Step 2: Open the browser and show the user code.
+		fmt.Printf("Opening GitHub in your browser...\n")
+		fmt.Printf("If it doesn't open, go to: \033[36m%s\033[0m\n\n", dcResp.VerificationURI)
+		fmt.Printf("Enter this code: \033[1;33m%s\033[0m\n\n", dcResp.UserCode)
+		exec.Command("xdg-open", dcResp.VerificationURI).Start()
 		fmt.Printf("Waiting for authorization (expires in %ds)...\n", dcResp.ExpiresIn)
 
 		// Step 3: Poll until approved or expired.
