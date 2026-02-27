@@ -74,15 +74,7 @@ var tenantListCmd = &cobra.Command{
 		fmt.Printf("%-20s  %-30s  %-36s  %s\n", "NAME", "EMAIL", "TENANT ID", "CREATED")
 		fmt.Println(strings.Repeat("\u2500", 96))
 		for _, t := range tenants {
-			name := ""
-			if t.OAuthUserId.Valid {
-				name = t.OAuthUserId.StringVal
-			}
-			email := ""
-			if t.UserEmail.Valid {
-				email = t.UserEmail.StringVal
-			}
-			fmt.Printf("%-20s  %-30s  %-36s  %s\n", name, email, t.TenantId, t.CreatedAt.Format("2006-01-02 15:04:05"))
+			fmt.Printf("%-20s  %-30s  %-36s  %s\n", t.OAuthUserId, t.UserEmail, t.TenantId, t.CreatedAt.Format("2006-01-02 15:04:05"))
 		}
 		return nil
 	},

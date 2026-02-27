@@ -26,18 +26,102 @@ type Provider interface {
 
 // JobConfig contains the configuration for submitting a batch job.
 // This structure is cloud-agnostic and maps to provider-specific formats.
+// Fields mirror the frontend SubmitJobRequest proto plus backend-only knobs.
 type JobConfig struct {
+	// ── Identity ──────────────────────────────────────────────────────────────
+
 	// JobID is the provider-compatible job identifier (e.g., "jennah-abc123").
+	// Generated as "jennah-{name}" or "jennah-{uuid[:8]}" if Name is empty.
 	JobID string
+
+	// RequestID is used as an idempotency key at the GCP Batch CreateJob API.
+	// Defaults to the internal job UUID.
+	RequestID string
+
+	// Name is the optional user-facing job label from SubmitJobRequest.name.
+	Name string
+
+	// ── Container Execution ───────────────────────────────────────────────────
 
 	// ImageURI is the container image to run (e.g., gcr.io/project/image:tag).
 	ImageURI string
 
-	// EnvVars are environment variables to pass to the container.
+	// Commands overrides/appends to the container CMD.
+	Commands []string
+
+	// ContainerEntrypoint overrides the container ENTRYPOINT (backend-only).
+	ContainerEntrypoint string
+
+	// EnvVars are environment variables passed to the container.
 	EnvVars map[string]string
 
-	// Resources specifies compute resource requirements (optional).
+	// ── Compute Resources ─────────────────────────────────────────────────────
+
+	// Resources specifies CPU, memory, and max-run-duration requirements.
+	// Resolved from resource_profile + resource_override.
 	Resources *ResourceRequirements
+
+	// MachineType requests a specific GCP machine type (e.g., "e2-standard-4").
+	// Empty means GCP auto-selects based on CPU/memory.
+	MachineType string
+
+	// MinCpuPlatform enforces a specific processor generation (backend-only).
+	// Examples: "Intel Cascade Lake", "AMD EPYC Rome".
+	MinCpuPlatform string
+
+	// BootDiskSizeGb is boot disk size in GB (default 50, min 10).
+	BootDiskSizeGb int64
+
+	// UseSpotVMs selects SPOT provisioning (cheaper, preemptible) when true.
+	UseSpotVMs bool
+
+	// Accelerators requests GPU/TPU resources (backend-only).
+	Accelerators *AcceleratorConfig
+
+	// ── Networking & Security ─────────────────────────────────────────────────
+
+	// ServiceAccount is the GCP SA email for the job VMs.
+	// Empty uses the default Compute Engine service account.
+	ServiceAccount string
+
+	// NetworkName is the full VPC network resource name (backend-only).
+	NetworkName string
+
+	// SubnetworkName is the full subnetwork resource name (backend-only).
+	SubnetworkName string
+
+	// BlockExternalIP disables external IPs on VMs (backend-only).
+	BlockExternalIP bool
+
+	// AllowedLocations restricts VM creation to these regions (backend-only).
+	AllowedLocations []string
+
+	// ── VM Instance Options ───────────────────────────────────────────────────
+
+	// InstallGpuDrivers auto-installs GPU drivers when true (backend-only).
+	InstallGpuDrivers bool
+
+	// InstallOpsAgent auto-installs the GCP Ops Agent when true (backend-only).
+	InstallOpsAgent bool
+
+	// BlockProjectSshKeys prevents project-level SSH keys from accessing VMs.
+	BlockProjectSshKeys bool
+
+	// ── Task Group ────────────────────────────────────────────────────────────
+
+	// TaskGroup controls parallelism and scheduling within a job.
+	TaskGroup *TaskGroupConfig
+
+	// MaxRetryCount is the number of GCP-level task retries (0–10, backend-only).
+	MaxRetryCount int32
+
+	// ── Job Metadata ──────────────────────────────────────────────────────────
+
+	// Priority is the job scheduling priority (0–100, backend-only).
+	Priority int64
+
+	// JobLabels are key-value labels attached to the GCP Batch job (backend-only).
+	JobLabels map[string]string
 }
 
 // ResourceRequirements specifies compute resource requirements for a job.
@@ -50,6 +134,42 @@ type ResourceRequirements struct {
 
 	// MaxRunDurationSeconds is maximum runtime before timeout (optional).
 	MaxRunDurationSeconds int64
+}
+
+// TaskGroupConfig controls how GCP Batch manages the task group within a job.
+type TaskGroupConfig struct {
+	// TaskCount is the total number of tasks (default 1).
+	TaskCount int64
+
+	// Parallelism is the max concurrent tasks (0 = unlimited).
+	Parallelism int64
+
+	// SchedulingPolicy is "AS_SOON_AS_POSSIBLE" (default) or "IN_ORDER".
+	SchedulingPolicy string
+
+	// TaskCountPerNode limits tasks per VM (0 = no limit).
+	TaskCountPerNode int64
+
+	// RequireHostsFile populates /etc/hosts with all task IPs (for multi-VM jobs).
+	RequireHostsFile bool
+
+	// PermissiveSsh enables passwordless SSH between task VMs.
+	PermissiveSsh bool
+
+	// RunAsNonRoot enforces non-root container execution.
+	RunAsNonRoot bool
+}
+
+// AcceleratorConfig specifies GPU/TPU hardware accelerators for a job.
+type AcceleratorConfig struct {
+	// Type is the accelerator type (e.g., "nvidia-tesla-t4", "nvidia-tesla-v100").
+	Type string
+
+	// Count is the number of accelerator units per VM.
+	Count int64
+
+	// DriverVersion is an optional specific driver version.
+	DriverVersion string
 }
 
 // JobResult contains the result of submitting a batch job.

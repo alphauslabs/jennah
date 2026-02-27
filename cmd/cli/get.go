@@ -47,8 +47,8 @@ var getCmd = &cobra.Command{
 		if job.ErrorMessage != nil {
 			fmt.Printf("Error:     %s\n", *job.ErrorMessage)
 		}
-		if job.CloudJobResourcePath != nil {
-			fmt.Printf("Cloud Path:%s\n", *job.CloudJobResourcePath)
+		if job.GcpBatchJobName != nil {
+			fmt.Printf("Cloud Path:%s\n", *job.GcpBatchJobName)
 		}
 		return nil
 	},

@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 
 	jennahv1 "github.com/alphauslabs/jennah/gen/proto"
+	"github.com/alphauslabs/jennah/internal/router"
 )
 
 func (s *GatewayService) GetCurrentTenant(
@@ -68,6 +69,18 @@ func (s *GatewayService) SubmitJob(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("imageUri is required"))
 	}
 
+	// Classify the job and decide which GCP service should execute it.
+	// This routing decision is logged now and will drive direct GCP API calls
+	// (Cloud Tasks / Cloud Run Jobs / Cloud Batch) in the next integration phase.
+	routingDecision := router.EvaluateJobComplexity(req.Msg)
+	log.Printf(
+		"Job routing decision: complexity=%s service=%s reason=%q (tenant=%s)",
+		routingDecision.Complexity,
+		routingDecision.AssignedService,
+		routingDecision.Reason,
+		tenantId,
+	)
+
 	//workerIP := s.router.GetWorkerIP(tenantId)
 
 	//create unique routing key for each job submission to ensure better load distribution across workers
@@ -90,6 +103,8 @@ func (s *GatewayService) SubmitJob(
 		EnvVars:          req.Msg.EnvVars,
 		ResourceProfile:  req.Msg.ResourceProfile,
 		ResourceOverride: req.Msg.ResourceOverride,
+		MachineType:      req.Msg.MachineType,
+		Commands:         req.Msg.Commands,
 	})
 	workerReq.Header().Set("X-Tenant-Id", tenantId)
 
@@ -100,8 +115,12 @@ func (s *GatewayService) SubmitJob(
 	}
 
 	response.Msg.WorkerAssigned = workerIP
-	log.Printf("Job submitted successfully: jobId=%s, worker=%s, status=%s",
-		response.Msg.JobId, workerIP, response.Msg.Status)
+	response.Msg.ComplexityLevel = routingDecision.Complexity.String()
+	response.Msg.AssignedService = routingDecision.AssignedService.String()
+	response.Msg.RoutingReason = routingDecision.Reason
+	log.Printf("Job submitted successfully: jobId=%s, worker=%s, status=%s, complexity=%s, service=%s",
+		response.Msg.JobId, workerIP, response.Msg.Status,
+		response.Msg.ComplexityLevel, response.Msg.AssignedService)
 
 	return response, nil
 }

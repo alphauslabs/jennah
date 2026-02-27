@@ -1,0 +1,8 @@
+{
+  "imageUri": "gcr.io/google-samples/hello-app:1.0",
+  "envVars": {
+    "APP_NAME": "hello-world",
+    "TEST_ENV": "production"
+  },
+  "resourceProfile": "default"
+}

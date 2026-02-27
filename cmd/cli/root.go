@@ -19,6 +19,9 @@ func init() {
 	// Global flags (available to all subcommands)
 	rootCmd.PersistentFlags().String("tenant-id", "", "Tenant ID (required for most commands)")
 
+	// Gateway flag (can also be set via env var)
+	rootCmd.PersistentFlags().String("gateway", "", "Gateway URL (or JENNAH_GATEWAY_URL env var)")
+
 	// Spanner connection flags (can also be set via env vars)
 	rootCmd.PersistentFlags().String("project", "", "GCP project ID (or JENNAH_PROJECT env var)")
 	rootCmd.PersistentFlags().String("instance", "", "Spanner instance ID (or JENNAH_INSTANCE env var)")
