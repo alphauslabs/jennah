@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -10,60 +9,27 @@ import (
 
 var tenantCmd = &cobra.Command{
 	Use:   "tenant",
-	Short: "Manage tenants",
+	Short: "Manage your tenant account",
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
 }
 
-var tenantCreateCmd = &cobra.Command{
-	Use:   "create",
-	Short: "Create a new tenant",
-	Long:  "jennah tenant create --name <name> --email <email>",
+var tenantWhoamiCmd = &cobra.Command{
+	Use:   "whoami",
+	Short: "Show your tenant info",
+	Long:  "jennah tenant whoami",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		name, _ := cmd.Flags().GetString("name")
-		email, _ := cmd.Flags().GetString("email")
-
-		if name == "" {
-			return fmt.Errorf("--name flag is required")
-		}
-		if email == "" {
-			return fmt.Errorf("--email flag is required")
-		}
-
-		db, closeDB, err := newDBClient(cmd)
+		gw, err := newGatewayClient(cmd)
 		if err != nil {
 			return err
 		}
-		defer closeDB()
 
-		tenantID := newJobID() // auto-generate UUID
-		if err := db.InsertTenant(context.Background(), tenantID, email, "local", name); err != nil {
-			return fmt.Errorf("failed to create tenant: %w", err)
-		}
-
-		fmt.Printf("\u2713 Tenant created\n")
-		fmt.Printf("  Name:      %s\n", name)
-		fmt.Printf("  Email:     %s\n", email)
-		fmt.Printf("  Tenant ID: %s\n", tenantID)
-		return nil
-	},
-}
-
-var tenantListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all tenants",
-	Long:  "jennah tenant list",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		db, closeDB, err := newDBClient(cmd)
-		if err != nil {
-			return err
-		}
-		defer closeDB()
-
-		tenants, err := db.ListTenants(context.Background())
-		if err != nil {
-			return fmt.Errorf("failed to list tenants: %w", err)
+		var result struct {
+			TenantID      string `json:"tenantId"`
+			UserEmail     string `json:"userEmail"`
+			OAuthProvider string `json:"oauthProvider"`
+			CreatedAt     string `json:"createdAt"`
 		}
 
 		if len(tenants) == 0 {
@@ -98,17 +64,20 @@ var tenantDeleteCmd = &cobra.Command{
 
 		if err := db.DeleteTenant(context.Background(), tenantID); err != nil {
 			return fmt.Errorf("failed to delete tenant: %w", err)
+		if err := gw.post("/jennah.v1.DeploymentService/GetCurrentTenant", map[string]interface{}{}, &result); err != nil {
+			return fmt.Errorf("failed to get tenant: %w", err)
 		}
 
-		fmt.Printf("✓ Tenant %q deleted (and all its jobs)\n", tenantID)
+		fmt.Println("Tenant Info")
+		fmt.Println(strings.Repeat("─", 40))
+		fmt.Printf("Tenant ID: %s\n", result.TenantID)
+		fmt.Printf("Email:     %s\n", result.UserEmail)
+		fmt.Printf("Provider:  %s\n", result.OAuthProvider)
+		fmt.Printf("Created:   %s\n", result.CreatedAt)
 		return nil
 	},
 }
 
 func init() {
-	tenantCreateCmd.Flags().String("name", "", "Tenant name (required)")
-	tenantCreateCmd.Flags().String("email", "", "User email address (required)")
-	tenantCmd.AddCommand(tenantCreateCmd)
-	tenantCmd.AddCommand(tenantListCmd)
-	tenantCmd.AddCommand(tenantDeleteCmd)
+	tenantCmd.AddCommand(tenantWhoamiCmd)
 }

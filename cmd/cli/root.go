@@ -6,18 +6,23 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "jennah",
-	Short: "Jennah workload deployment CLI",
+	Short: "Jennah CLI",
+	Long: "-------------------------------------------------------------------\n" +
+		"                           Jennah CLI\n" +
+		"-------------------------------------------------------------------",
+	SilenceUsage: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
 }
 
 func init() {
-	// Disable alphabetical sorting to control command order
 	cobra.EnableCommandSorting = false
 
-	// Global flags (available to all subcommands)
-	rootCmd.PersistentFlags().String("tenant-id", "", "Tenant ID (required for most commands)")
+	rootCmd.PersistentFlags().String("provider", "", "OAuth provider, default: google (or JENNAH_PROVIDER env var)")
+	rootCmd.PersistentFlags().String("gateway", "", "Gateway URL (or JENNAH_GATEWAY env var)")
+	rootCmd.PersistentFlags().MarkHidden("provider")
+	rootCmd.PersistentFlags().MarkHidden("gateway")
 
 	// Gateway flag (can also be set via env var)
 	rootCmd.PersistentFlags().String("gateway", "", "Gateway URL (or JENNAH_GATEWAY_URL env var)")
@@ -33,11 +38,11 @@ func init() {
 	// Disable completion command
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
-	// Add subcommands in desired order (help is added automatically at the end)
 	rootCmd.AddCommand(submitCmd)
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(deleteCmd)
 	rootCmd.AddCommand(tenantCmd)
+	rootCmd.AddCommand(loginCmd)
+	rootCmd.AddCommand(logoutCmd)
 }
