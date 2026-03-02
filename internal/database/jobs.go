@@ -35,7 +35,7 @@ func (c *Client) InsertJobFull(ctx context.Context, job *Job) error {
 			[]interface{}{
 				job.TenantId, job.JobId, job.Status, job.ImageUri, job.Commands,
 				spanner.CommitTimestamp, spanner.CommitTimestamp, job.RetryCount, job.MaxRetries,
-				job.GcpBatchJobName, job.GcpBatchTaskGroup, job.EnvVarsJson,
+				job.GcpBatchJobPath, job.GcpBatchTaskGroup, job.EnvVarsJson,
 				job.Name, job.ResourceProfile, job.MachineType,
 				job.BootDiskSizeGb, job.UseSpotVms, job.ServiceAccount,
 				job.OwnerWorkerId, job.PreferredWorkerId, job.LeaseExpiresAt, job.LastHeartbeatAt,
@@ -148,16 +148,16 @@ func (c *Client) UpdateJobStatus(ctx context.Context, tenantID, jobID, status st
 	return nil
 }
 
-// UpdateJobStatusAndGcpBatchJobName updates the status and GCP Batch job name of a job
-func (c *Client) UpdateJobStatusAndGcpBatchJobName(ctx context.Context, tenantID, jobID, status, gcpBatchJobName string) error {
+// UpdateJobStatusAndGcpBatchJobPath updates the status and GCP Batch job path of a job.
+func (c *Client) UpdateJobStatusAndGcpBatchJobPath(ctx context.Context, tenantID, jobID, status, gcpBatchJobPath string) error {
 	_, err := c.client.Apply(ctx, []*spanner.Mutation{
 		spanner.Update("Jobs",
 			[]string{"TenantId", "JobId", "Status", "GcpBatchJobPath", "UpdatedAt"},
-			[]any{tenantID, jobID, status, gcpBatchJobName, spanner.CommitTimestamp},
+			[]any{tenantID, jobID, status, gcpBatchJobPath, spanner.CommitTimestamp},
 		),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update job status and GCP Batch job name: %w", err)
+		return fmt.Errorf("failed to update job status and GCP Batch job path: %w", err)
 	}
 	return nil
 }
