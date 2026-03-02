@@ -27,7 +27,7 @@ type Job struct {
 	RetryCount        int64      `spanner:"RetryCount"`
 	MaxRetries        int64      `spanner:"MaxRetries"`
 	ErrorMessage      *string    `spanner:"ErrorMessage"`
-	GcpBatchJobName   *string    `spanner:"GcpBatchJobName"`
+	GcpBatchJobName   *string    `spanner:"CloudJobResourcePath"`
 	GcpBatchTaskGroup *string    `spanner:"GcpBatchTaskGroup"`
 	EnvVarsJson       *string    `spanner:"EnvVarsJson"`
 	Name              *string    `spanner:"Name"`
