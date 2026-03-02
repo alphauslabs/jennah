@@ -13,7 +13,7 @@ import (
 func (c *Client) InsertJob(ctx context.Context, tenantID, jobID, imageUri string, commands []string) error {
 	_, err := c.client.Apply(ctx, []*spanner.Mutation{
 		spanner.Insert("Jobs",
-			[]string{"TenantId", "JobId", "Status", "ImageUri", "Commands", "CreatedAt", "UpdatedAt", "RetryCount", "MaxRetries", "CloudJobResourcePath", "GcpBatchTaskGroup", "OwnerWorkerId", "PreferredWorkerId", "LeaseExpiresAt", "LastHeartbeatAt"},
+			[]string{"TenantId", "JobId", "Status", "ImageUri", "Commands", "CreatedAt", "UpdatedAt", "RetryCount", "MaxRetries", "GcpBatchJobPath", "GcpBatchTaskGroup", "OwnerWorkerId", "PreferredWorkerId", "LeaseExpiresAt", "LastHeartbeatAt"},
 			[]interface{}{tenantID, jobID, JobStatusPending, imageUri, commands, spanner.CommitTimestamp, spanner.CommitTimestamp, 0, 3, nil, nil, nil, nil, nil, nil},
 		),
 	})
@@ -27,7 +27,7 @@ func (c *Client) InsertJobFull(ctx context.Context, job *Job) error {
 			[]string{
 				"TenantId", "JobId", "Status", "ImageUri", "Commands",
 				"CreatedAt", "UpdatedAt", "RetryCount", "MaxRetries",
-				"CloudJobResourcePath", "GcpBatchTaskGroup", "EnvVarsJson",
+				"GcpBatchJobPath", "GcpBatchTaskGroup", "EnvVarsJson",
 				"Name", "ResourceProfile", "MachineType",
 				"BootDiskSizeGb", "UseSpotVms", "ServiceAccount",
 				"OwnerWorkerId", "PreferredWorkerId", "LeaseExpiresAt", "LastHeartbeatAt",
@@ -49,7 +49,7 @@ func (c *Client) InsertJobFull(ctx context.Context, job *Job) error {
 func (c *Client) GetJob(ctx context.Context, tenantID, jobID string) (*Job, error) {
 	row, err := c.client.Single().ReadRow(ctx, "Jobs",
 		spanner.Key{tenantID, jobID},
-		[]string{"TenantId", "JobId", "Status", "ImageUri", "Commands", "CreatedAt", "UpdatedAt", "ScheduledAt", "StartedAt", "CompletedAt", "RetryCount", "MaxRetries", "ErrorMessage", "CloudJobResourcePath", "GcpBatchTaskGroup", "EnvVarsJson", "Name", "ResourceProfile", "MachineType", "BootDiskSizeGb", "UseSpotVms", "ServiceAccount", "OwnerWorkerId", "PreferredWorkerId", "LeaseExpiresAt", "LastHeartbeatAt"},
+		[]string{"TenantId", "JobId", "Status", "ImageUri", "Commands", "CreatedAt", "UpdatedAt", "ScheduledAt", "StartedAt", "CompletedAt", "RetryCount", "MaxRetries", "ErrorMessage", "GcpBatchJobPath", "GcpBatchTaskGroup", "EnvVarsJson", "Name", "ResourceProfile", "MachineType", "BootDiskSizeGb", "UseSpotVms", "ServiceAccount", "OwnerWorkerId", "PreferredWorkerId", "LeaseExpiresAt", "LastHeartbeatAt"},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get job: %w", err)
@@ -66,7 +66,7 @@ func (c *Client) GetJob(ctx context.Context, tenantID, jobID string) (*Job, erro
 // ListJobs returns all jobs for a tenant
 func (c *Client) ListJobs(ctx context.Context, tenantID string) ([]*Job, error) {
 	stmt := spanner.Statement{
-		SQL: `SELECT TenantId, JobId, Status, ImageUri, Commands, CreatedAt, UpdatedAt, ScheduledAt, StartedAt, CompletedAt, RetryCount, MaxRetries, ErrorMessage, CloudJobResourcePath, GcpBatchTaskGroup, EnvVarsJson, Name, ResourceProfile, MachineType, BootDiskSizeGb, UseSpotVms, ServiceAccount, OwnerWorkerId, PreferredWorkerId, LeaseExpiresAt, LastHeartbeatAt
+		SQL: `SELECT TenantId, JobId, Status, ImageUri, Commands, CreatedAt, UpdatedAt, ScheduledAt, StartedAt, CompletedAt, RetryCount, MaxRetries, ErrorMessage, GcpBatchJobPath, GcpBatchTaskGroup, EnvVarsJson, Name, ResourceProfile, MachineType, BootDiskSizeGb, UseSpotVms, ServiceAccount, OwnerWorkerId, PreferredWorkerId, LeaseExpiresAt, LastHeartbeatAt
 		      FROM Jobs 
 		      WHERE TenantId = @tenantId 
 		      ORDER BY CreatedAt DESC`,
@@ -101,7 +101,7 @@ func (c *Client) ListJobs(ctx context.Context, tenantID string) ([]*Job, error) 
 // ListJobsByStatus returns jobs for a tenant filtered by status
 func (c *Client) ListJobsByStatus(ctx context.Context, tenantID, status string) ([]*Job, error) {
 	stmt := spanner.Statement{
-		SQL: `SELECT TenantId, JobId, Status, ImageUri, Commands, CreatedAt, UpdatedAt, ScheduledAt, StartedAt, CompletedAt, RetryCount, MaxRetries, ErrorMessage, CloudJobResourcePath, GcpBatchTaskGroup, EnvVarsJson, Name, ResourceProfile, MachineType, BootDiskSizeGb, UseSpotVms, ServiceAccount, OwnerWorkerId, PreferredWorkerId, LeaseExpiresAt, LastHeartbeatAt
+		SQL: `SELECT TenantId, JobId, Status, ImageUri, Commands, CreatedAt, UpdatedAt, ScheduledAt, StartedAt, CompletedAt, RetryCount, MaxRetries, ErrorMessage, GcpBatchJobPath, GcpBatchTaskGroup, EnvVarsJson, Name, ResourceProfile, MachineType, BootDiskSizeGb, UseSpotVms, ServiceAccount, OwnerWorkerId, PreferredWorkerId, LeaseExpiresAt, LastHeartbeatAt
 		      FROM Jobs@{FORCE_INDEX=JobsByStatus}
 		      WHERE TenantId = @tenantId AND Status = @status 
 		      ORDER BY CreatedAt DESC`,
@@ -152,7 +152,7 @@ func (c *Client) UpdateJobStatus(ctx context.Context, tenantID, jobID, status st
 func (c *Client) UpdateJobStatusAndGcpBatchJobName(ctx context.Context, tenantID, jobID, status, gcpBatchJobName string) error {
 	_, err := c.client.Apply(ctx, []*spanner.Mutation{
 		spanner.Update("Jobs",
-			[]string{"TenantId", "JobId", "Status", "CloudJobResourcePath", "UpdatedAt"},
+			[]string{"TenantId", "JobId", "Status", "GcpBatchJobPath", "UpdatedAt"},
 			[]any{tenantID, jobID, status, gcpBatchJobName, spanner.CommitTimestamp},
 		),
 	})
@@ -251,10 +251,10 @@ func (c *Client) DeleteJob(ctx context.Context, tenantID, jobID string) error {
 // ListActiveJobs returns all active (non-terminal) jobs across tenants that have a cloud resource path.
 func (c *Client) ListActiveJobs(ctx context.Context) ([]*Job, error) {
 	stmt := spanner.Statement{
-		SQL: `SELECT TenantId, JobId, Status, ImageUri, Commands, CreatedAt, UpdatedAt, ScheduledAt, StartedAt, CompletedAt, RetryCount, MaxRetries, ErrorMessage, CloudJobResourcePath, GcpBatchTaskGroup, EnvVarsJson, Name, ResourceProfile, MachineType, BootDiskSizeGb, UseSpotVms, ServiceAccount, OwnerWorkerId, PreferredWorkerId, LeaseExpiresAt, LastHeartbeatAt
+		SQL: `SELECT TenantId, JobId, Status, ImageUri, Commands, CreatedAt, UpdatedAt, ScheduledAt, StartedAt, CompletedAt, RetryCount, MaxRetries, ErrorMessage, GcpBatchJobPath, GcpBatchTaskGroup, EnvVarsJson, Name, ResourceProfile, MachineType, BootDiskSizeGb, UseSpotVms, ServiceAccount, OwnerWorkerId, PreferredWorkerId, LeaseExpiresAt, LastHeartbeatAt
 		      FROM Jobs
 		      WHERE Status IN (@pending, @scheduled, @running)
-		        AND CloudJobResourcePath IS NOT NULL
+		        AND GcpBatchJobPath IS NOT NULL
 		      ORDER BY UpdatedAt DESC`,
 		Params: map[string]interface{}{
 			"pending":   JobStatusPending,
