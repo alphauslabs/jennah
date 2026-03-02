@@ -5,6 +5,7 @@ go 1.25
 require (
 	cloud.google.com/go/batch v1.14.0
 	cloud.google.com/go/spanner v1.82.0
+	cloud.google.com/go/storage v1.56.0
 	connectrpc.com/connect v1.19.1
 	github.com/buraksezer/consistent v0.10.0
 	github.com/google/uuid v1.6.0
@@ -25,6 +26,8 @@ require (
 	cloud.google.com/go/monitoring v1.24.3 // indirect
 	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.6.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.29.0 // indirect
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.53.0 // indirect
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.53.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20250501225837-2ac532fd4443 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
