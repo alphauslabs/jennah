@@ -138,9 +138,14 @@ func (p *Processor) processReader(ctx context.Context, reader io.Reader, br *Byt
 	return nil
 }
 
-// openFile opens the input file
+// openFile opens the input file (local or GCS)
 func (p *Processor) openFile(ctx context.Context) (io.Reader, error) {
-	// Check if file exists
+	// Check if GCS path
+	if IsGCSPath(p.config.InputDataPath) {
+		return p.openGCSFile(ctx)
+	}
+
+	// Local file path
 	fileInfo, err := os.Stat(p.config.InputDataPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -166,9 +171,53 @@ func (p *Processor) openFile(ctx context.Context) (io.Reader, error) {
 	return file, nil
 }
 
-// WriteMetrics writes the metrics to output location
+// openGCSFile opens a file from Google Cloud Storage with byte-range support
+func (p *Processor) openGCSFile(ctx context.Context) (io.Reader, error) {
+	// Calculate byte range
+	calc := NewChunkCalculator(p.config.InputDataSize, p.config.TotalInstances)
+	byteRange, err := calc.Calculate(p.config.InstanceID)
+	if err != nil {
+		p.errorHandler.HandleError(ErrProcessing, err)
+		return nil, fmt.Errorf("calculate byte range: %w", err)
+	}
+
+	log.Printf("Opening GCS file: %s (bytes %d-%d)", p.config.InputDataPath, byteRange.StartByte, byteRange.EndByte)
+
+	// If InputDataSize not set, fetch it from GCS
+	if p.config.InputDataSize == 0 {
+		size, err := GetGCSObjectSize(ctx, p.config.InputDataPath)
+		if err != nil {
+			p.errorHandler.HandleError(ErrFileNotFound, err)
+			return nil, err
+		}
+		p.config.InputDataSize = size
+		log.Printf("GCS file size: %d bytes", p.config.InputDataSize)
+
+		// Recalculate range with actual size
+		byteRange, err = calc.Calculate(p.config.InstanceID)
+		if err != nil {
+			return nil, fmt.Errorf("recalculate byte range: %w", err)
+		}
+	}
+
+	// Open GCS range reader
+	reader, err := NewGCSRangeReader(ctx, p.config.InputDataPath, byteRange.StartByte, byteRange.EndByte)
+	if err != nil {
+		p.errorHandler.HandleError(ErrFileNotFound, err)
+		return nil, err
+	}
+
+	return reader, nil
+}
+
+// WriteMetrics writes the metrics to output location (local or GCS)
 func (p *Processor) WriteMetrics(ctx context.Context, metrics *ProcessMetrics) error {
-	// Create output directory if it doesn't exist
+	// Check if GCS output
+	if IsGCSPath(p.config.OutputBasePath) {
+		return p.writeMetricsToGCS(ctx, metrics)
+	}
+
+	// Local file output
 	outputDir := p.config.OutputBasePath
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		p.errorHandler.HandleError(ErrPermissionDenied, err)
@@ -193,5 +242,33 @@ func (p *Processor) WriteMetrics(ctx context.Context, metrics *ProcessMetrics) e
 	}
 
 	log.Printf("Metrics written to: %s", outputFile)
+	return nil
+}
+
+// writeMetricsToGCS writes metrics to Google Cloud Storage
+func (p *Processor) writeMetricsToGCS(ctx context.Context, metrics *ProcessMetrics) error {
+	// Construct GCS path: gs://bucket/base_path/instance-{id}.json
+	outputPath := fmt.Sprintf("%s/instance-%d.json", strings.TrimSuffix(p.config.OutputBasePath, "/"), p.config.InstanceID)
+
+	log.Printf("Writing metrics to GCS: %s", outputPath)
+
+	// Convert metrics to JSON
+	jsonData, err := metrics.ToJSON()
+	if err != nil {
+		p.errorHandler.HandleError(ErrProcessing, err)
+		return fmt.Errorf("cannot marshal metrics to JSON: %w", err)
+	}
+
+	// Write to GCS with retry
+	err = p.errorHandler.HandleWithRetry(func() error {
+		return WriteGCSFile(ctx, outputPath, jsonData)
+	}, "Write metrics to GCS")
+
+	if err != nil {
+		p.errorHandler.HandleError(ErrNetworkTimeout, err)
+		return err
+	}
+
+	log.Printf("Metrics written to GCS: %s", outputPath)
 	return nil
 }

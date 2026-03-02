@@ -140,7 +140,34 @@ func WriteGCSFile(ctx context.Context, path string, data []byte) error {
 	return nil
 }
 
-// ListGCSObjects lists objects in a GCS directory
+// ReadGCSFile reads entire content from a GCS object
+func ReadGCSFile(ctx context.Context, path string) ([]byte, error) {
+	bucket, key, err := ParseGCSPath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create GCS client: %w", err)
+	}
+	defer client.Close()
+
+	reader, err := client.Bucket(bucket).Object(key).NewReader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("open GCS file %s: %w", path, err)
+	}
+	defer reader.Close()
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("read GCS file %s: %w", path, err)
+	}
+
+	return data, nil
+}
+
+// ListGCSObjects lists objects in a GCS directory and returns object keys
 func ListGCSObjects(ctx context.Context, basePath string) ([]string, error) {
 	bucket, prefix, err := ParseGCSPath(basePath)
 	if err != nil {
@@ -165,7 +192,8 @@ func ListGCSObjects(ctx context.Context, basePath string) ([]string, error) {
 			return nil, fmt.Errorf("list GCS objects: %w", err)
 		}
 
-		objects = append(objects, fmt.Sprintf("gs://%s/%s", bucket, attrs.Name))
+		// Return just the object name (relative to prefix)
+		objects = append(objects, attrs.Name)
 	}
 
 	return objects, nil
