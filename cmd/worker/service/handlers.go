@@ -507,12 +507,11 @@ func ptrBoolOrNil(v bool) *bool {
 }
 
 // serviceTierFromPlan maps a NavigationPlan's AssignedService to a database ServiceTier constant.
+// Both SIMPLE and MEDIUM router tiers map to ServiceTierSimple — Cloud Tasks has been removed.
 func serviceTierFromPlan(plan *navigator.NavigationPlan) string {
 	switch plan.AssignedService {
-	case router.AssignedServiceCloudTasks:
+	case router.AssignedServiceCloudTasks, router.AssignedServiceCloudRunJob:
 		return database.ServiceTierSimple
-	case router.AssignedServiceCloudRunJob:
-		return database.ServiceTierMedium
 	case router.AssignedServiceCloudBatch:
 		return database.ServiceTierComplex
 	default:

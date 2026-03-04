@@ -32,13 +32,6 @@ type JobPoller struct {
 
 // startJobPoller spawns a background goroutine to poll the batch provider for job status updates.
 func (s *WorkerService) startJobPoller(ctx context.Context, tenantID, jobID, gcpResourcePath, initialStatus, serviceTier string) {
-	// Cloud Tasks tasks are fire-and-forget — status is determined by the HTTP
-	// response from the target, so there is nothing to poll.
-	if serviceTier == database.ServiceTierSimple {
-		log.Printf("Skipping poller for Cloud Tasks job %s (SIMPLE tier)", jobID)
-		return
-	}
-
 	pollerKey := fmt.Sprintf("%s/%s", tenantID, jobID)
 
 	poller := &JobPoller{

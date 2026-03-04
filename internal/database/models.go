@@ -65,8 +65,9 @@ const (
 )
 
 // ServiceTier constants indicate which GCP service executes the job.
+// SIMPLE covers all lightweight jobs (Cloud Run Jobs).
+// COMPLEX covers heavy/GPU/long-running jobs (Cloud Batch).
 const (
-	ServiceTierSimple  = "SIMPLE"  // Cloud Tasks
-	ServiceTierMedium  = "MEDIUM"  // Cloud Run Jobs
+	ServiceTierSimple  = "SIMPLE"  // Cloud Run Jobs
 	ServiceTierComplex = "COMPLEX" // Cloud Batch
 )
