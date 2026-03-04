@@ -99,7 +99,6 @@ func (p *GCPCloudTasksProvider) SubmitJob(ctx context.Context, config batchpkg.J
 	payload := taskPayload{
 		JobID:     config.JobID,
 		RequestID: config.RequestID,
-		TenantID:  config.TenantID,
 		ImageURI:  config.ImageURI,
 		Commands:  config.Commands,
 		EnvVars:   config.EnvVars,
