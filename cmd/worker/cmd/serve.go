@@ -78,11 +78,13 @@ func runServe(cmd *cobra.Command, args []string) error {
 		crProvider, err := batch.NewProvider(ctx, crConfig)
 		if err != nil {
 			log.Printf("Warning: failed to create Cloud Run Jobs provider: %v (SIMPLE jobs will fail)", err)
+			log.Printf("Warning: failed to create Cloud Run Jobs provider: %v (SIMPLE jobs will fail)", err)
 		} else {
 			dispatcherOpts = append(dispatcherOpts, dispatcher.WithCloudRunJobs(crProvider))
 			log.Printf("Initialized Cloud Run Jobs provider in region: %s", cfg.CloudRun.Region)
 		}
 	} else {
+		log.Println("WARNING: Cloud Run Jobs provider not configured (set CLOUD_RUN_ENABLED=true) — SIMPLE jobs will be rejected")
 		log.Println("WARNING: Cloud Run Jobs provider not configured (set CLOUD_RUN_ENABLED=true) — SIMPLE jobs will be rejected")
 	}
 
