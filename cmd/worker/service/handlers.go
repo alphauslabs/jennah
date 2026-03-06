@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	batchpb "cloud.google.com/go/batch/apiv1/batchpb"
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
@@ -73,6 +72,21 @@ func dbJobToProto(job *database.Job) *jennahv1.Job {
 	if job.ServiceAccount != nil {
 		p.ServiceAccount = *job.ServiceAccount
 	}
+	if job.ServiceTier != nil {
+		p.ComplexityLevel = *job.ServiceTier
+	}
+	if job.AssignedService != nil {
+		p.AssignedService = *job.AssignedService
+	}
+	if job.MemoryMib != nil {
+		p.MemoryMib = *job.MemoryMib
+	}
+	if job.CpuMillis != nil {
+		p.CpuMillis = *job.CpuMillis
+	}
+	if job.MaxRunDurationSeconds != nil {
+		p.MaxRunDurationSeconds = *job.MaxRunDurationSeconds
+	}
 
 	return p
 }
@@ -126,24 +140,27 @@ func (s *WorkerService) SubmitJob(
 	now := time.Now().UTC()
 	leaseUntil := now.Add(s.leaseTTL)
 	err := s.dbClient.InsertJobFull(ctx, &database.Job{
-		TenantId:          tenantID,
-		JobId:             internalJobID,
-		Status:            database.JobStatusPending,
-		ImageUri:          req.Msg.ImageUri,
-		Commands:          req.Msg.Commands,
-		RetryCount:        0,
-		MaxRetries:        3,
-		EnvVarsJson:       envVarsJson,
-		Name:              ptrStringOrNil(req.Msg.Name),
-		ResourceProfile:   ptrStringOrNil(req.Msg.ResourceProfile),
-		MachineType:       ptrStringOrNil(req.Msg.MachineType),
-		BootDiskSizeGb:    ptrInt64OrNil(req.Msg.BootDiskSizeGb),
-		UseSpotVms:        ptrBoolOrNil(req.Msg.UseSpotVms),
-		ServiceAccount:    ptrStringOrNil(req.Msg.ServiceAccount),
-		OwnerWorkerId:     &s.workerID,
-		PreferredWorkerId: &s.workerID,
-		LeaseExpiresAt:    &leaseUntil,
-		LastHeartbeatAt:   &now,
+		TenantId:              tenantID,
+		JobId:                 internalJobID,
+		Status:                database.JobStatusPending,
+		ImageUri:              req.Msg.ImageUri,
+		Commands:              req.Msg.Commands,
+		RetryCount:            0,
+		MaxRetries:            3,
+		EnvVarsJson:           envVarsJson,
+		Name:                  ptrStringOrNil(req.Msg.Name),
+		ResourceProfile:       ptrStringOrNil(req.Msg.ResourceProfile),
+		MachineType:           ptrStringOrNil(req.Msg.MachineType),
+		BootDiskSizeGb:        ptrInt64OrNil(req.Msg.BootDiskSizeGb),
+		UseSpotVms:            ptrBoolOrNil(req.Msg.UseSpotVms),
+		ServiceAccount:        ptrStringOrNil(req.Msg.ServiceAccount),
+		MemoryMib:             ptrInt64OrNil(req.Msg.GetResourceOverride().GetMemoryMib()),
+		CpuMillis:             ptrInt64OrNil(req.Msg.GetResourceOverride().GetCpuMillis()),
+		MaxRunDurationSeconds: ptrInt64OrNil(req.Msg.GetResourceOverride().GetMaxRunDurationSeconds()),
+		OwnerWorkerId:         &s.workerID,
+		PreferredWorkerId:     &s.workerID,
+		LeaseExpiresAt:        &leaseUntil,
+		LastHeartbeatAt:       &now,
 	})
 	if err != nil {
 		log.Printf("Error inserting job to database: %v", err)
@@ -156,7 +173,7 @@ func (s *WorkerService) SubmitJob(
 
 	// Submit job to cloud batch provider.
 	// Use the navigator to classify the job and build configuration, then
-	// dispatch to the appropriate provider (Cloud Tasks / Cloud Run / Cloud Batch).
+	// dispatch to the appropriate provider (Cloud Run Jobs / Cloud Batch).
 	plan, err := navigator.Navigate(req.Msg, internalJobID, s.jobConfig)
 	if err != nil {
 		log.Printf("Error building navigation plan: %v", err)
@@ -202,7 +219,7 @@ func (s *WorkerService) SubmitJob(
 		statusToSet = database.JobStatusRunning
 	}
 
-	err = s.dbClient.UpdateJobStatusAndGcpBatchJobPath(ctx, tenantID, internalJobID, statusToSet, jobResult.CloudResourcePath, serviceTierFromPlan(plan))
+	err = s.dbClient.UpdateJobStatusAndGcpBatchJobPath(ctx, tenantID, internalJobID, statusToSet, jobResult.CloudResourcePath, serviceTierFromPlan(plan), plan.AssignedService.String())
 	if err != nil {
 		log.Printf("Error updating job status to %s: %v", statusToSet, err)
 		return nil, connect.NewError(
@@ -296,23 +313,31 @@ func (s *WorkerService) CancelJob(
 		)
 	}
 
-	// Cancel job in GCP Batch.
+	// Cancel job in cloud provider.
 	if job.GcpBatchJobPath != nil {
-		cancelReq := &batchpb.CancelJobRequest{
-			Name: *job.GcpBatchJobPath,
-		}
-		op, err := s.gcpBatchClient.CancelJob(ctx, cancelReq)
-		if err != nil {
-			log.Printf("Error cancelling job in GCP Batch: %v", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cancel job in GCP Batch: %w", err))
+		// Determine which provider to use based on AssignedService.
+		// Default to Cloud Batch for backward compatibility with jobs that don't have AssignedService set.
+		assignedService := router.AssignedServiceCloudBatch
+		if job.AssignedService != nil && *job.AssignedService != "" {
+			// Parse the AssignedService string back to the enum value.
+			// Job.AssignedService is stored as a string like "CLOUD_RUN_JOB" or "CLOUD_BATCH"
+			switch *job.AssignedService {
+			case "CLOUD_RUN_JOB":
+				assignedService = router.AssignedServiceCloudRunJob
+			case "CLOUD_BATCH":
+				assignedService = router.AssignedServiceCloudBatch
+			default:
+				assignedService = router.AssignedServiceCloudBatch
+			}
 		}
 
-		_, err = op.Poll(ctx)
+		// Route to the appropriate provider.
+		err = s.dispatcher.CancelJob(ctx, assignedService, *job.GcpBatchJobPath)
 		if err != nil {
-			log.Printf("Error polling cancel operation: %v", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cancel operation: %w", err))
+			log.Printf("Error cancelling job in provider: %v", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cancel job in provider: %w", err))
 		}
-		log.Printf("Job %s cancelled in GCP Batch", jobID)
+		log.Printf("Job %s cancelled in provider (%s)", jobID, assignedService)
 	}
 
 	// Update job status to CANCELLED in database.
@@ -342,7 +367,7 @@ func (s *WorkerService) CancelJob(
 	return response, nil
 }
 
-// DeleteJob deletes a job from GCP Batch and the database.
+// DeleteJob deletes a job from the cloud provider and the database.
 func (s *WorkerService) DeleteJob(
 	ctx context.Context,
 	req *connect.Request[jennahv1.DeleteJobRequest],
@@ -367,23 +392,31 @@ func (s *WorkerService) DeleteJob(
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("job not found: %w", err))
 	}
 
-	// Delete job from GCP Batch.
+	// Delete job from cloud provider (if it has a resource path).
 	if job.GcpBatchJobPath != nil {
-		deleteReq := &batchpb.DeleteJobRequest{
-			Name: *job.GcpBatchJobPath,
-		}
-		op, err := s.gcpBatchClient.DeleteJob(ctx, deleteReq)
-		if err != nil {
-			log.Printf("Error deleting job from GCP Batch: %v", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to delete job from GCP Batch: %w", err))
+		// Determine which provider to use based on AssignedService.
+		// Default to Cloud Batch for backward compatibility with jobs that don't have AssignedService set.
+		assignedService := router.AssignedServiceCloudBatch
+		if job.AssignedService != nil && *job.AssignedService != "" {
+			// Parse the AssignedService string back to the enum value.
+			// Job.AssignedService is stored as a string like "CLOUD_RUN_JOB" or "CLOUD_BATCH"
+			switch *job.AssignedService {
+			case "CLOUD_RUN_JOB":
+				assignedService = router.AssignedServiceCloudRunJob
+			case "CLOUD_BATCH":
+				assignedService = router.AssignedServiceCloudBatch
+			default:
+				assignedService = router.AssignedServiceCloudBatch
+			}
 		}
 
-		err = op.Poll(ctx)
+		// Route to the appropriate provider.
+		err = s.dispatcher.DeleteJob(ctx, assignedService, *job.GcpBatchJobPath)
 		if err != nil {
-			log.Printf("Error polling delete operation: %v", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to delete operation: %w", err))
+			log.Printf("Error deleting job from provider: %v", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to delete job from provider: %w", err))
 		}
-		log.Printf("Job %s deleted from GCP Batch", jobID)
+		log.Printf("Job %s deleted from cloud provider (%s)", jobID, assignedService)
 	}
 
 	// Delete job from database (cascades to JobStateTransitions).
@@ -510,10 +543,10 @@ func ptrBoolOrNil(v bool) *bool {
 }
 
 // serviceTierFromPlan maps a NavigationPlan's AssignedService to a database ServiceTier constant.
-// Both SIMPLE and MEDIUM router tiers map to ServiceTierSimple — Cloud Tasks has been removed.
+// Cloud Run Jobs routes to ServiceTierSimple (previously Cloud Tasks).
 func serviceTierFromPlan(plan *navigator.NavigationPlan) string {
 	switch plan.AssignedService {
-	case router.AssignedServiceCloudTasks, router.AssignedServiceCloudRunJob:
+	case router.AssignedServiceCloudRunJob:
 		return database.ServiceTierSimple
 	case router.AssignedServiceCloudBatch:
 		return database.ServiceTierComplex

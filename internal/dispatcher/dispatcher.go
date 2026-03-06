@@ -47,14 +47,7 @@ func New(opts ...Option) (*Dispatcher, error) {
 // Option configures a Dispatcher.
 type Option func(*Dispatcher)
 
-// WithCloudTasks registers a Cloud Tasks provider for SIMPLE jobs.
-func WithCloudTasks(p batch.Provider) Option {
-	return func(d *Dispatcher) {
-		d.providers[router.AssignedServiceCloudTasks] = p
-	}
-}
-
-// WithCloudRunJobs registers a Cloud Run Jobs provider for MEDIUM jobs.
+// WithCloudRunJobs registers a Cloud Run Jobs provider for SIMPLE jobs.
 func WithCloudRunJobs(p batch.Provider) Option {
 	return func(d *Dispatcher) {
 		d.providers[router.AssignedServiceCloudRunJob] = p
@@ -107,4 +100,14 @@ func (d *Dispatcher) CancelJob(ctx context.Context, assignedService router.Assig
 	}
 
 	return p.CancelJob(ctx, cloudResourcePath)
+}
+
+// DeleteJob deletes a job using the provider that matches assignedService.
+func (d *Dispatcher) DeleteJob(ctx context.Context, assignedService router.AssignedService, cloudResourcePath string) error {
+	p, err := d.ProviderFor(assignedService)
+	if err != nil {
+		return err
+	}
+
+	return p.DeleteJob(ctx, cloudResourcePath)
 }

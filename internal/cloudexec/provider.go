@@ -20,12 +20,16 @@ type Provider interface {
 	// CancelJob cancels a running job.
 	CancelJob(ctx context.Context, cloudResourcePath string) error
 
+	// DeleteJob deletes a job from the cloud provider.
+	// This also deletes the job from the database (Spanner) via the caller.
+	DeleteJob(ctx context.Context, cloudResourcePath string) error
+
 	// ListJobs lists all jobs for the configured project/account.
 	// Returns cloud resource paths.
 	ListJobs(ctx context.Context) ([]string, error)
 
 	// ServiceType returns the GCP service type this provider implements.
-	// Examples: "CLOUD_TASKS", "CLOUD_RUN_JOB", "CLOUD_BATCH".
+	// Examples: "CLOUD_RUN_JOB", "CLOUD_BATCH".
 	ServiceType() string
 }
 
@@ -248,7 +252,6 @@ type ProviderConfig struct {
 
 // Service type constants used by Provider.ServiceType().
 const (
-	ServiceTypeCloudTasks  = "CLOUD_TASKS"
 	ServiceTypeCloudRunJob = "CLOUD_RUN_JOB"
 	ServiceTypeCloudBatch  = "CLOUD_BATCH"
 )
@@ -258,8 +261,6 @@ func NewProvider(ctx context.Context, config ProviderConfig) (Provider, error) {
 	switch config.Provider {
 	case "gcp":
 		return newGCPProvider(ctx, config)
-	case "gcp-cloudtasks":
-		return newGCPCloudTasksProvider(ctx, config)
 	case "gcp-cloudrun":
 		return newGCPCloudRunProvider(ctx, config)
 	case "aws":
@@ -273,21 +274,15 @@ func NewProvider(ctx context.Context, config ProviderConfig) (Provider, error) {
 
 // Provider-specific constructors (implemented in separate files)
 var (
-	newGCPProvider           func(context.Context, ProviderConfig) (Provider, error)
-	newGCPCloudTasksProvider func(context.Context, ProviderConfig) (Provider, error)
-	newGCPCloudRunProvider   func(context.Context, ProviderConfig) (Provider, error)
-	newAWSProvider           func(context.Context, ProviderConfig) (Provider, error)
-	newAzureProvider         func(context.Context, ProviderConfig) (Provider, error)
+	newGCPProvider         func(context.Context, ProviderConfig) (Provider, error)
+	newGCPCloudRunProvider func(context.Context, ProviderConfig) (Provider, error)
+	newAWSProvider         func(context.Context, ProviderConfig) (Provider, error)
+	newAzureProvider       func(context.Context, ProviderConfig) (Provider, error)
 )
 
 // RegisterGCPProvider registers the GCP batch provider constructor.
 func RegisterGCPProvider(fn func(context.Context, ProviderConfig) (Provider, error)) {
 	newGCPProvider = fn
-}
-
-// RegisterGCPCloudTasksProvider registers the GCP Cloud Tasks provider constructor.
-func RegisterGCPCloudTasksProvider(fn func(context.Context, ProviderConfig) (Provider, error)) {
-	newGCPCloudTasksProvider = fn
 }
 
 // RegisterGCPCloudRunProvider registers the GCP Cloud Run Jobs provider constructor.

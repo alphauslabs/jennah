@@ -246,6 +246,24 @@ func (p *GCPCloudRunProvider) CancelJob(ctx context.Context, cloudResourcePath s
 	return nil
 }
 
+// DeleteJob deletes a Cloud Run Job resource.
+func (p *GCPCloudRunProvider) DeleteJob(ctx context.Context, cloudResourcePath string) error {
+	deleteOp, err := p.jobsClient.DeleteJob(ctx, &runpb.DeleteJobRequest{
+		Name: cloudResourcePath,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete Cloud Run job: %w", err)
+	}
+
+	_, err = deleteOp.Wait(ctx)
+	if err != nil {
+		return fmt.Errorf("failed waiting for Cloud Run job deletion: %w", err)
+	}
+
+	log.Printf("Cloud Run job deleted: %s", cloudResourcePath)
+	return nil
+}
+
 // ListJobs lists all Cloud Run Jobs in the configured project/region.
 func (p *GCPCloudRunProvider) ListJobs(ctx context.Context) ([]string, error) {
 	parent := fmt.Sprintf("projects/%s/locations/%s", p.projectID, p.region)
@@ -271,27 +289,45 @@ func (p *GCPCloudRunProvider) ListJobs(ctx context.Context) ([]string, error) {
 	return jobNames, nil
 }
 
+// Close closes the Cloud Run Jobs and Executions clients.
+func (p *GCPCloudRunProvider) Close() error {
+	// Close jobsClient
+	if err := p.jobsClient.Close(); err != nil {
+		log.Printf("Error closing jobsClient: %v", err)
+	}
+
+	// Close executionClient
+	if err := p.executionClient.Close(); err != nil {
+		log.Printf("Error closing executionClient: %v", err)
+	}
+
+	return nil
+}
+
 // mapCloudRunStatus maps a Cloud Run Execution to a Jennah JobStatus.
 //
 // Cloud Run execution conditions:
-//   - Running: execution is active
-//   - Succeeded: all tasks completed successfully
-//   - Failed: one or more tasks failed
-//   - Cancelled: execution was cancelled
+//
+// The Cloud Run v2 API uses the "Completed" condition type for terminal states:
+//   - CONDITION_SUCCEEDED → job completed successfully
+//   - CONDITION_FAILED   → job failed (container error, timeout, etc.)
+//
+// The "Cancelled" condition type is set when an execution is cancelled.
 func mapCloudRunStatus(execution *runpb.Execution) batchpkg.JobStatus {
 	if execution == nil {
 		return batchpkg.JobStatusUnknown
 	}
 
 	// Check terminal conditions first.
+	// Cloud Run v2 signals both success and failure via the "Completed" condition
+	// with different states (CONDITION_SUCCEEDED vs CONDITION_FAILED).
 	for _, condition := range execution.GetConditions() {
 		switch condition.GetType() {
 		case "Completed":
-			if condition.GetState() == runpb.Condition_CONDITION_SUCCEEDED {
+			switch condition.GetState() {
+			case runpb.Condition_CONDITION_SUCCEEDED:
 				return batchpkg.JobStatusCompleted
-			}
-		case "Failed":
-			if condition.GetState() == runpb.Condition_CONDITION_SUCCEEDED {
+			case runpb.Condition_CONDITION_FAILED:
 				return batchpkg.JobStatusFailed
 			}
 		case "Cancelled":
@@ -306,7 +342,12 @@ func mapCloudRunStatus(execution *runpb.Execution) batchpkg.JobStatus {
 		return batchpkg.JobStatusRunning
 	}
 
-	// If tasks are pending but none running, it's scheduled.
+	// Fallback: detect failure from task counts when conditions aren't populated yet.
+	if execution.GetFailedCount() > 0 && execution.GetRunningCount() == 0 {
+		return batchpkg.JobStatusFailed
+	}
+
+	// If no tasks have started yet, it's pending.
 	if execution.GetRunningCount() == 0 && execution.GetSucceededCount() == 0 && execution.GetFailedCount() == 0 {
 		return batchpkg.JobStatusPending
 	}
