@@ -83,6 +83,8 @@ consumer-docker-run:
 	  -e DB_PROJECT_ID=$(PROJECT_ID) \
 	  -e DB_INSTANCE=alphaus-dev \
 	  -e DB_DATABASE=main \
+	  -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/credentials.json \
+	  -v ~/.config/gcloud/application_default_credentials.json:/tmp/credentials.json \
 	  $(CONSUMER_IMAGE_NAME):$(IMAGE_TAG)
 
 # Push the consumer Docker image to Artifact Registry

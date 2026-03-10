@@ -106,13 +106,16 @@ func runServe(cmd *cobra.Command, args []string) error {
 	})))
 	log.Println("Health check endpoint: /health (with CORS)")
 
+	mux.Handle("/notifications/stream", corsMiddleware(gatewayService.SSENotificationsHandler()))
+	log.Println("SSE notifications stream endpoint: /notifications/stream (with CORS)")
+
 	addr := fmt.Sprintf("0.0.0.0:%s", port)
 	server := &http.Server{
-		Addr:         addr,
-		Handler:      mux,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:        addr,
+		Handler:     mux,
+		ReadTimeout: 15 * time.Second,
+		// WriteTimeout is 0 to support long-lived SSE connections.
+		IdleTimeout: 60 * time.Second,
 	}
 
 	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -127,6 +130,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		log.Printf("  • POST %sCancelJob", path)
 		log.Printf("  • POST %sDeleteJob", path)
 		log.Printf("  • GET  /health")
+		log.Printf("  • GET  /notifications/stream (SSE)")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
