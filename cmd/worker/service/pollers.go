@@ -200,7 +200,7 @@ func (poller *JobPoller) poll(ctx context.Context, server *WorkerService, poller
 					event := notifier.BuildEvent(transitionID, poller.tenantID, poller.jobID, dbStatus, oldStatus)
 					event.CloudResourcePath = poller.gcpResourcePath
 					event.ServiceTier = poller.serviceTier
-					event.AssignedService = string(poller.assignedService)
+					event.AssignedService = poller.assignedService.String()
 					server.publishTerminalEvent(ctx, event, poller.tenantID)
 
 					poller.stop()
