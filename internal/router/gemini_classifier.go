@@ -46,10 +46,16 @@ func ClassifyWithGemini(ctx context.Context, _ string, cpuMillis, memoryMiB, dur
 		project = os.Getenv("GCP_PROJECT")
 	}
 	if project == "" {
-		return nil, fmt.Errorf("BATCH_PROJECT_ID or GCP_PROJECT must be set for Vertex AI")
+		project = os.Getenv("PROJECT_ID")
+	}
+	if project == "" {
+		return nil, fmt.Errorf("BATCH_PROJECT_ID, GCP_PROJECT, or PROJECT_ID must be set for Vertex AI")
 	}
 
 	location := os.Getenv("BATCH_REGION")
+	if location == "" {
+		location = os.Getenv("REGION")
+	}
 	if location == "" {
 		location = "us-central1"
 	}
