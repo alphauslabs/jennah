@@ -47,7 +47,8 @@ gw-deploy:
 	  --port 8080 \
 	  --allow-unauthenticated \
 	  --vpc-egress all-traffic \
-	  --vpc-connector $(VPC_CONNECTOR)
+	  --vpc-connector $(VPC_CONNECTOR) \
+	  --set-env-vars PROJECT_ID=$(PROJECT_ID),REGION=$(REGION)
 
 
 # Get Cloud Run service URL
