@@ -81,16 +81,15 @@ func ClassifyWithGemini(ctx context.Context, _ string, cpuMillis, memoryMiB, dur
 
 	result, err := client.Models.GenerateContent(ctx, "gemini-2.0-flash-001", genai.Text(prompt), &genai.GenerateContentConfig{
 		SystemInstruction: genai.NewContentFromText(geminiSystemInstruction, genai.RoleUser),
+		ResponseMIMEType:  "application/json",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("Gemini API call failed: %w", err)
 	}
 
-	rawText := result.Text()
-
 	var classification GeminiClassification
-	if err := json.Unmarshal([]byte(rawText), &classification); err != nil {
-		return nil, fmt.Errorf("failed to parse Gemini response %q: %w", rawText, err)
+	if err := json.Unmarshal([]byte(result.Text()), &classification); err != nil {
+		return nil, fmt.Errorf("failed to parse Gemini response %q: %w", result.Text(), err)
 	}
 
 	return &classification, nil
